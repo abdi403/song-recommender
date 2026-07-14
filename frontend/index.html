@@ -1,795 +1,1204 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Soundwave — Music Discovery</title>
-<style>
-  :root{
-    --spotify-green:#1DB954;
-    --spotify-green-dark:#1aa34a;
-    --bg-black:#000000;
-    --bg-base:#121212;
-    --bg-elevated:#181818;
-    --bg-highlight:#282828;
-    --bg-highlight-hover:#3e3e3e;
-    --text-white:#ffffff;
-    --text-subdued:#a7a7a7;
-    --text-bright:#e5e5e5;
-    --border:#2a2a2a;
-    --danger:#f15e6c;
-  }
-  *{box-sizing:border-box; margin:0; padding:0;}
-  body{
-    font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;
-    background:var(--bg-black);
-    color:var(--text-white);
-    min-height:100vh;
-  }
-  ::-webkit-scrollbar{width:12px;}
-  ::-webkit-scrollbar-track{background:var(--bg-black);}
-  ::-webkit-scrollbar-thumb{background:#5a5a5a; border-radius:6px; border:3px solid var(--bg-black);}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Soundwave — Music Discovery</title>
+  <style>
+    :root {
+      --spotify-green: #1DB954;
+      --spotify-green-dark: #1aa34a;
+      --bg-black: #000000;
+      --bg-base: #121212;
+      --bg-elevated: #181818;
+      --bg-highlight: #282828;
+      --bg-highlight-hover: #3e3e3e;
+      --text-white: #ffffff;
+      --text-subdued: #a7a7a7;
+      --text-bright: #e5e5e5;
+      --border: #2a2a2a;
+      --danger: #f15e6c;
+    }
 
-  .app{
-    display:grid;
-    grid-template-columns:240px 1fr;
-    grid-template-rows:1fr;
-    height:100vh;
-    gap:8px;
-    padding:8px;
-  }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-  /* Sidebar */
-  .sidebar{
-    background:var(--bg-black);
-    border-radius:8px;
-    padding:20px 12px;
-    display:flex;
-    flex-direction:column;
-    gap:24px;
-    overflow-y:auto;
-  }
-  .logo{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    padding:0 12px;
-    font-size:22px;
-    font-weight:800;
-    letter-spacing:-0.5px;
-  }
-  .logo svg{fill:var(--spotify-green); width:32px; height:32px;}
-  .nav-section{display:flex; flex-direction:column; gap:2px;}
-  .nav-item{
-    display:flex;
-    align-items:center;
-    gap:16px;
-    padding:10px 12px;
-    border-radius:6px;
-    color:var(--text-subdued);
-    cursor:pointer;
-    font-weight:700;
-    font-size:14px;
-    transition:color .15s ease, background .15s ease;
-    border:none;
-    background:none;
-    text-align:left;
-    width:100%;
-  }
-  .nav-item svg{width:20px; height:20px; flex-shrink:0; fill:currentColor;}
-  .nav-item:hover{color:var(--text-white);}
-  .nav-item.active{color:var(--text-white); background:var(--bg-highlight);}
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background: var(--bg-black);
+      color: var(--text-white);
+      min-height: 100vh;
+    }
 
-  .sidebar-divider{height:1px; background:var(--border); margin:4px 12px;}
+    ::-webkit-scrollbar {
+      width: 12px;
+    }
 
-  .sidebar-card{
-    background:var(--bg-elevated);
-    border-radius:8px;
-    padding:16px;
-    margin:0 4px;
-    font-size:13px;
-    color:var(--text-subdued);
-    line-height:1.5;
-  }
-  .sidebar-card strong{color:var(--text-white); display:block; margin-bottom:6px; font-size:14px;}
+    ::-webkit-scrollbar-track {
+      background: var(--bg-black);
+    }
 
-  /* Main */
-  .main{
-    background:linear-gradient(180deg, #3a3a3a 0%, var(--bg-base) 280px, var(--bg-base) 100%);
-    border-radius:8px;
-    overflow-y:auto;
-    display:flex;
-    flex-direction:column;
-  }
-  .topbar{
-    position:sticky;
-    top:0;
-    z-index:10;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    padding:16px 32px;
-    background:rgba(0,0,0,0.3);
-    backdrop-filter:blur(10px);
-  }
-  .topbar-nav{display:flex; gap:16px; align-items:center;}
-  .topbar-nav button.circle{
-    width:32px; height:32px;
-    border-radius:50%;
-    background:rgba(0,0,0,0.7);
-    border:none;
-    color:var(--text-white);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    cursor:pointer;
-  }
-  .searchbar{
-    flex:1;
-    max-width:420px;
-    display:flex;
-    align-items:center;
-    background:var(--bg-highlight);
-    border-radius:500px;
-    padding:10px 16px;
-    gap:10px;
-    border:1px solid transparent;
-    transition:border .15s;
-  }
-  .searchbar:focus-within{border-color:var(--text-white); background:#2a2a2a;}
-  .searchbar svg{width:18px; height:18px; fill:var(--text-white); flex-shrink:0;}
-  .searchbar input{
-    background:none;
-    border:none;
-    outline:none;
-    color:var(--text-white);
-    font-size:14px;
-    width:100%;
-  }
-  .searchbar input::placeholder{color:var(--text-subdued);}
+    ::-webkit-scrollbar-thumb {
+      background: #5a5a5a;
+      border-radius: 6px;
+      border: 3px solid var(--bg-black);
+    }
 
-  .content{padding:24px 32px 100px 32px; flex:1;}
-  .page{display:none; animation:fadeIn .25s ease;}
-  .page.active{display:block;}
-  @keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+    .app {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      grid-template-rows: 1fr;
+      height: 100vh;
+      gap: 8px;
+      padding: 8px;
+    }
 
-  h1.page-title{font-size:28px; font-weight:800; margin-bottom:20px;}
-  h2.section-title{font-size:20px; font-weight:700; margin:28px 0 16px 0;}
+    /* Sidebar */
+    .sidebar {
+      background: var(--bg-black);
+      border-radius: 8px;
+      padding: 20px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      overflow-y: auto;
+    }
 
-  /* Song list / table */
-  .song-table{width:100%; border-collapse:collapse;}
-  .song-table thead th{
-    text-align:left;
-    color:var(--text-subdued);
-    font-size:12px;
-    font-weight:500;
-    text-transform:uppercase;
-    letter-spacing:0.5px;
-    padding:0 12px 8px 12px;
-    border-bottom:1px solid var(--border);
-  }
-  .song-row{
-    cursor:pointer;
-    border-radius:4px;
-    transition:background .1s ease;
-  }
-  .song-row:hover{background:var(--bg-highlight);}
-  .song-row td{padding:10px 12px; font-size:14px; color:var(--text-subdued); vertical-align:middle;}
-  .song-cell{display:flex; align-items:center; gap:12px;}
-  .song-thumb{
-    width:40px; height:40px;
-    border-radius:4px;
-    background:linear-gradient(135deg, var(--spotify-green), #1a5c33);
-    display:flex; align-items:center; justify-content:center;
-    flex-shrink:0;
-    font-size:16px;
-  }
-  .song-meta strong{color:var(--text-white); font-weight:400; display:block; font-size:14px;}
-  .song-meta span{font-size:12px; color:var(--text-subdued);}
-  .badge{
-    display:inline-block;
-    padding:2px 8px;
-    border-radius:4px;
-    background:rgba(29,185,84,0.15);
-    color:var(--spotify-green);
-    font-size:11px;
-    font-weight:700;
-    text-transform:uppercase;
-  }
-  .row-actions{display:flex; gap:8px; justify-content:flex-end;}
-  .icon-btn{
-    background:none;
-    border:none;
-    color:var(--text-subdued);
-    cursor:pointer;
-    padding:6px;
-    border-radius:50%;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    transition:color .15s, transform .1s;
-  }
-  .icon-btn:hover{color:var(--text-white); transform:scale(1.08);}
-  .icon-btn svg{width:16px; height:16px; fill:currentColor;}
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 12px;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
 
-  .empty-state{
-    text-align:center;
-    padding:60px 20px;
-    color:var(--text-subdued);
-  }
-  .empty-state svg{width:64px; height:64px; fill:#4a4a4a; margin-bottom:16px;}
-  .empty-state p{font-size:15px;}
+    .logo svg {
+      fill: var(--spotify-green);
+      width: 32px;
+      height: 32px;
+    }
 
-  .loading{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:60px;
-    gap:12px;
-    color:var(--text-subdued);
-  }
-  .spinner{
-    width:24px; height:24px;
-    border:3px solid var(--bg-highlight);
-    border-top-color:var(--spotify-green);
-    border-radius:50%;
-    animation:spin .8s linear infinite;
-  }
-  @keyframes spin{to{transform:rotate(360deg);}}
+    .nav-section {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
 
-  /* Cards grid (recommendations) */
-  .card-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(170px, 1fr));
-    gap:20px;
-  }
-  .music-card{
-    background:var(--bg-elevated);
-    border-radius:8px;
-    padding:14px;
-    cursor:pointer;
-    transition:background .2s ease;
-    position:relative;
-  }
-  .music-card:hover{background:var(--bg-highlight);}
-  .music-card .cover{
-    width:100%;
-    aspect-ratio:1;
-    border-radius:6px;
-    background:linear-gradient(135deg, var(--spotify-green), #164a29);
-    margin-bottom:12px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:36px;
-    box-shadow:0 8px 24px rgba(0,0,0,0.4);
-    position:relative;
-  }
-  .play-fab{
-    position:absolute;
-    bottom:8px; right:8px;
-    width:44px; height:44px;
-    border-radius:50%;
-    background:var(--spotify-green);
-    display:flex; align-items:center; justify-content:center;
-    box-shadow:0 8px 16px rgba(0,0,0,0.4);
-    opacity:0;
-    transform:translateY(8px);
-    transition:opacity .2s ease, transform .2s ease;
-    border:none;
-    cursor:pointer;
-  }
-  .music-card:hover .play-fab{opacity:1; transform:translateY(0);}
-  .play-fab svg{width:20px; height:20px; fill:#000;}
-  .music-card .title{font-size:14px; font-weight:700; color:var(--text-white); margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .music-card .artist{font-size:13px; color:var(--text-subdued); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .similarity{
-    position:absolute;
-    top:14px; left:14px;
-    background:rgba(0,0,0,0.75);
-    color:var(--spotify-green);
-    font-size:11px;
-    font-weight:700;
-    padding:3px 8px;
-    border-radius:20px;
-    z-index:2;
-  }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      color: var(--text-subdued);
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 14px;
+      transition: color .15s ease, background .15s ease;
+      border: none;
+      background: none;
+      text-align: left;
+      width: 100%;
+    }
 
-  /* Forms */
-  .panel{
-    background:var(--bg-elevated);
-    border-radius:12px;
-    padding:28px;
-    max-width:640px;
-  }
-  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:18px;}
-  .form-group{display:flex; flex-direction:column; gap:6px;}
-  .form-group.full{grid-column:1 / -1;}
-  .form-group label{font-size:13px; font-weight:700; color:var(--text-bright);}
-  .form-group .hint{font-size:11px; color:var(--text-subdued); font-weight:400;}
-  .form-group input[type="text"],
-  .form-group input[type="number"],
-  .form-group select{
-    background:var(--bg-highlight);
-    border:1px solid var(--border);
-    border-radius:4px;
-    padding:10px 12px;
-    color:var(--text-white);
-    font-size:14px;
-    outline:none;
-    transition:border .15s;
-  }
-  .form-group input:focus, .form-group select:focus{border-color:var(--text-white);}
-  .slider-row{display:flex; align-items:center; gap:12px;}
-  .slider-row input[type="range"]{
-    flex:1;
-    accent-color:var(--spotify-green);
-    height:4px;
-  }
-  .slider-value{
-    min-width:44px;
-    text-align:right;
-    font-size:13px;
-    color:var(--spotify-green);
-    font-weight:700;
-  }
+    .nav-item svg {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+      fill: currentColor;
+    }
 
-  .btn{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    gap:8px;
-    padding:12px 32px;
-    border-radius:500px;
-    border:none;
-    font-weight:700;
-    font-size:14px;
-    cursor:pointer;
-    transition:transform .1s ease, background .15s ease;
-  }
-  .btn-primary{background:var(--spotify-green); color:#000;}
-  .btn-primary:hover{background:#1ed760; transform:scale(1.03);}
-  .btn-secondary{background:transparent; border:1px solid #6a6a6a; color:var(--text-white);}
-  .btn-secondary:hover{border-color:var(--text-white); transform:scale(1.03);}
-  .btn:active{transform:scale(0.98);}
-  .btn:disabled{opacity:0.5; cursor:not-allowed; transform:none;}
-  .btn-row{display:flex; gap:12px; margin-top:24px;}
+    .nav-item:hover {
+      color: var(--text-white);
+    }
 
-  .result-box{
-    margin-top:24px;
-    background:var(--bg-highlight);
-    border-radius:8px;
-    padding:20px;
-    display:none;
-  }
-  .result-box.show{display:block; animation:fadeIn .3s ease;}
-  .result-row{display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border);}
-  .result-row:last-child{border-bottom:none;}
-  .result-row .label{color:var(--text-subdued); font-size:13px;}
-  .result-row .value{font-weight:700; font-size:14px;}
+    .nav-item.active {
+      color: var(--text-white);
+      background: var(--bg-highlight);
+    }
 
-  .popularity-meter{
-    width:100%;
-    height:8px;
-    background:var(--bg-base);
-    border-radius:8px;
-    overflow:hidden;
-    margin-top:8px;
-  }
-  .popularity-fill{
-    height:100%;
-    background:linear-gradient(90deg, var(--spotify-green-dark), var(--spotify-green));
-    width:0%;
-    transition:width 1s cubic-bezier(.2,.9,.3,1);
-    border-radius:8px;
-  }
-  .popularity-score{font-size:48px; font-weight:800; color:var(--spotify-green); text-align:center; margin:8px 0;}
-  .genre-result{
-    text-align:center;
-    padding:20px 0;
-  }
-  .genre-chip{
-    display:inline-block;
-    background:rgba(29,185,84,0.15);
-    color:var(--spotify-green);
-    padding:10px 24px;
-    border-radius:500px;
-    font-size:22px;
-    font-weight:800;
-    margin-top:8px;
-  }
-  .genre-confidence{color:var(--text-subdued); font-size:13px; margin-top:10px;}
+    .sidebar-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 12px;
+    }
 
-  .toast-container{
-    position:fixed;
-    bottom:24px;
-    left:50%;
-    transform:translateX(-50%);
-    z-index:1000;
-    display:flex;
-    flex-direction:column;
-    gap:8px;
-    align-items:center;
-  }
-  .toast{
-    background:var(--bg-highlight);
-    color:var(--text-white);
-    padding:14px 24px;
-    border-radius:8px;
-    font-size:14px;
-    font-weight:600;
-    box-shadow:0 8px 24px rgba(0,0,0,0.5);
-    border-left:4px solid var(--spotify-green);
-    animation:toastIn .3s ease;
-  }
-  .toast.error{border-left-color:var(--danger);}
-  @keyframes toastIn{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);}}
+    .sidebar-card {
+      background: var(--bg-elevated);
+      border-radius: 8px;
+      padding: 16px;
+      margin: 0 4px;
+      font-size: 13px;
+      color: var(--text-subdued);
+      line-height: 1.5;
+    }
 
-  .stat-strip{display:flex; gap:12px; margin-bottom:24px; flex-wrap:wrap;}
-  .stat-pill{
-    background:var(--bg-elevated);
-    border-radius:8px;
-    padding:14px 20px;
-    min-width:140px;
-  }
-  .stat-pill .num{font-size:22px; font-weight:800; color:var(--spotify-green);}
-  .stat-pill .lbl{font-size:12px; color:var(--text-subdued); margin-top:2px;}
+    .sidebar-card strong {
+      color: var(--text-white);
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
 
-  .breadcrumb-back{
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
-    color:var(--text-subdued);
-    background:none;
-    border:none;
-    cursor:pointer;
-    font-size:13px;
-    font-weight:700;
-    margin-bottom:16px;
-  }
-  .breadcrumb-back:hover{color:var(--text-white);}
-  .breadcrumb-back svg{width:16px; height:16px; fill:currentColor;}
+    /* Main */
+    .main {
+      background: linear-gradient(180deg, #3a3a3a 0%, var(--bg-base) 280px, var(--bg-base) 100%);
+      border-radius: 8px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
 
-  .api-note{
-    font-size:11px;
-    color:#6a6a6a;
-    margin-top:6px;
-    font-family:monospace;
-  }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 32px;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(10px);
+    }
 
-  @media (max-width:900px){
-    .app{grid-template-columns:1fr;}
-    .sidebar{display:none;}
-    .form-grid{grid-template-columns:1fr;}
-  }
-</style>
+    .topbar-nav {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .topbar-nav button.circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.7);
+      border: none;
+      color: var(--text-white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .searchbar {
+      flex: 1;
+      max-width: 420px;
+      display: flex;
+      align-items: center;
+      background: var(--bg-highlight);
+      border-radius: 500px;
+      padding: 10px 16px;
+      gap: 10px;
+      border: 1px solid transparent;
+      transition: border .15s;
+    }
+
+    .searchbar:focus-within {
+      border-color: var(--text-white);
+      background: #2a2a2a;
+    }
+
+    .searchbar svg {
+      width: 18px;
+      height: 18px;
+      fill: var(--text-white);
+      flex-shrink: 0;
+    }
+
+    .searchbar input {
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text-white);
+      font-size: 14px;
+      width: 100%;
+    }
+
+    .searchbar input::placeholder {
+      color: var(--text-subdued);
+    }
+
+    .content {
+      padding: 24px 32px 100px 32px;
+      flex: 1;
+    }
+
+    .page {
+      display: none;
+      animation: fadeIn .25s ease;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    h1.page-title {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 20px;
+    }
+
+    h2.section-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 28px 0 16px 0;
+    }
+
+    /* Song list / table */
+    .song-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .song-table thead th {
+      text-align: left;
+      color: var(--text-subdued);
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 0 12px 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .song-row {
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background .1s ease;
+    }
+
+    .song-row:hover {
+      background: var(--bg-highlight);
+    }
+
+    .song-row td {
+      padding: 10px 12px;
+      font-size: 14px;
+      color: var(--text-subdued);
+      vertical-align: middle;
+    }
+
+    .song-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .song-thumb {
+      width: 40px;
+      height: 40px;
+      border-radius: 4px;
+      background: linear-gradient(135deg, var(--spotify-green), #1a5c33);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 16px;
+    }
+
+    .song-meta strong {
+      color: var(--text-white);
+      font-weight: 400;
+      display: block;
+      font-size: 14px;
+    }
+
+    .song-meta span {
+      font-size: 12px;
+      color: var(--text-subdued);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: rgba(29, 185, 84, 0.15);
+      color: var(--spotify-green);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      color: var(--text-subdued);
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color .15s, transform .1s;
+    }
+
+    .icon-btn:hover {
+      color: var(--text-white);
+      transform: scale(1.08);
+    }
+
+    .icon-btn svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-subdued);
+    }
+
+    .empty-state svg {
+      width: 64px;
+      height: 64px;
+      fill: #4a4a4a;
+      margin-bottom: 16px;
+    }
+
+    .empty-state p {
+      font-size: 15px;
+    }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 60px;
+      gap: 12px;
+      color: var(--text-subdued);
+    }
+
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid var(--bg-highlight);
+      border-top-color: var(--spotify-green);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Cards grid (recommendations) */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 20px;
+    }
+
+    .music-card {
+      background: var(--bg-elevated);
+      border-radius: 8px;
+      padding: 14px;
+      cursor: pointer;
+      transition: background .2s ease;
+      position: relative;
+    }
+
+    .music-card:hover {
+      background: var(--bg-highlight);
+    }
+
+    .music-card .cover {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--spotify-green), #164a29);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      position: relative;
+    }
+
+    .play-fab {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--spotify-green);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity .2s ease, transform .2s ease;
+      border: none;
+      cursor: pointer;
+    }
+
+    .music-card:hover .play-fab {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .play-fab svg {
+      width: 20px;
+      height: 20px;
+      fill: #000;
+    }
+
+    .music-card .title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-white);
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .music-card .artist {
+      font-size: 13px;
+      color: var(--text-subdued);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .similarity {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: rgba(0, 0, 0, 0.75);
+      color: var(--spotify-green);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 20px;
+      z-index: 2;
+    }
+
+    /* Forms */
+    .panel {
+      background: var(--bg-elevated);
+      border-radius: 12px;
+      padding: 28px;
+      max-width: 640px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group.full {
+      grid-column: 1 / -1;
+    }
+
+    .form-group label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-bright);
+    }
+
+    .form-group .hint {
+      font-size: 11px;
+      color: var(--text-subdued);
+      font-weight: 400;
+    }
+
+    .form-group input[type="text"],
+    .form-group input[type="number"],
+    .form-group select {
+      background: var(--bg-highlight);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 12px;
+      color: var(--text-white);
+      font-size: 14px;
+      outline: none;
+      transition: border .15s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: var(--text-white);
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .slider-row input[type="range"] {
+      flex: 1;
+      accent-color: var(--spotify-green);
+      height: 4px;
+    }
+
+    .slider-value {
+      min-width: 44px;
+      text-align: right;
+      font-size: 13px;
+      color: var(--spotify-green);
+      font-weight: 700;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 32px;
+      border-radius: 500px;
+      border: none;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform .1s ease, background .15s ease;
+    }
+
+    .btn-primary {
+      background: var(--spotify-green);
+      color: #000;
+    }
+
+    .btn-primary:hover {
+      background: #1ed760;
+      transform: scale(1.03);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid #6a6a6a;
+      color: var(--text-white);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--text-white);
+      transform: scale(1.03);
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .result-box {
+      margin-top: 24px;
+      background: var(--bg-highlight);
+      border-radius: 8px;
+      padding: 20px;
+      display: none;
+    }
+
+    .result-box.show {
+      display: block;
+      animation: fadeIn .3s ease;
+    }
+
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .result-row:last-child {
+      border-bottom: none;
+    }
+
+    .result-row .label {
+      color: var(--text-subdued);
+      font-size: 13px;
+    }
+
+    .result-row .value {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .popularity-meter {
+      width: 100%;
+      height: 8px;
+      background: var(--bg-base);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .popularity-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--spotify-green-dark), var(--spotify-green));
+      width: 0%;
+      transition: width 1s cubic-bezier(.2, .9, .3, 1);
+      border-radius: 8px;
+    }
+
+    .popularity-score {
+      font-size: 48px;
+      font-weight: 800;
+      color: var(--spotify-green);
+      text-align: center;
+      margin: 8px 0;
+    }
+
+    .genre-result {
+      text-align: center;
+      padding: 20px 0;
+    }
+
+    .genre-chip {
+      display: inline-block;
+      background: rgba(29, 185, 84, 0.15);
+      color: var(--spotify-green);
+      padding: 10px 24px;
+      border-radius: 500px;
+      font-size: 22px;
+      font-weight: 800;
+      margin-top: 8px;
+    }
+
+    .genre-confidence {
+      color: var(--text-subdued);
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .toast {
+      background: var(--bg-highlight);
+      color: var(--text-white);
+      padding: 14px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      border-left: 4px solid var(--spotify-green);
+      animation: toastIn .3s ease;
+    }
+
+    .toast.error {
+      border-left-color: var(--danger);
+    }
+
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .stat-strip {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .stat-pill {
+      background: var(--bg-elevated);
+      border-radius: 8px;
+      padding: 14px 20px;
+      min-width: 140px;
+    }
+
+    .stat-pill .num {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--spotify-green);
+    }
+
+    .stat-pill .lbl {
+      font-size: 12px;
+      color: var(--text-subdued);
+      margin-top: 2px;
+    }
+
+    .breadcrumb-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-subdued);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .breadcrumb-back:hover {
+      color: var(--text-white);
+    }
+
+    .breadcrumb-back svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    .api-note {
+      font-size: 11px;
+      color: #6a6a6a;
+      margin-top: 6px;
+      font-family: monospace;
+    }
+
+    @media (max-width:900px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
+
 <body>
 
-<div class="app">
-  <!-- SIDEBAR -->
-  <nav class="sidebar">
-    <div class="logo">
-      <svg viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.36-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.18-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.38C8.64 5.94 15.6 6.24 19.681 8.7c.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.42z"/></svg>
-      Soundwave
-    </div>
-    <div class="nav-section">
-      <button class="nav-item active" data-page="home">
-        <svg viewBox="0 0 24 24"><path d="M12.5 3.247a1 1 0 0 0-1 0L4 7.577V21h5v-6a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v6h5V7.577l-7.5-4.33z"/></svg>
-        Home
-      </button>
-      <button class="nav-item" data-page="search">
-        <svg viewBox="0 0 24 24"><path d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.279 7.407-7.279s7.407 3.273 7.407 7.279-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.279z"/></svg>
-        Search
-      </button>
-    </div>
-    <div class="sidebar-divider"></div>
-    <div class="nav-section">
-      <div style="padding:0 12px; color:var(--text-subdued); font-size:12px; font-weight:700; text-transform:uppercase; margin-bottom:4px;">Tools</div>
-      <button class="nav-item" data-page="recommend">
-        <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-        Recommendations
-      </button>
-      <button class="nav-item" data-page="genre">
-        <svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
-        Predict Genre
-      </button>
-      <button class="nav-item" data-page="popularity">
-        <svg viewBox="0 0 24 24"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
-        Predict Popularity
-      </button>
-      <button class="nav-item" data-page="add">
-        <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4z"/></svg>
-        Add Song
-      </button>
-    </div>
-    <div class="sidebar-card">
-      <strong>API Status</strong>
-      <span id="apiStatusText">Connected to dummy endpoints — using local fallback data for demo.</span>
-    </div>
-  </nav>
-
-  <!-- MAIN -->
-  <main class="main">
-    <div class="topbar">
-      <div class="topbar-nav">
-        <button class="circle" title="Back">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="#fff"><path d="M15.5 3.5L7 12l8.5 8.5 1.5-1.5L10 12l7-7z"/></svg>
+  <div class="app">
+    <!-- SIDEBAR -->
+    <nav class="sidebar">
+      <div class="logo">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.36-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.18-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.38C8.64 5.94 15.6 6.24 19.681 8.7c.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.42z" />
+        </svg>
+        Soundwave
+      </div>
+      <div class="nav-section">
+        <button class="nav-item active" data-page="home">
+          <svg viewBox="0 0 24 24">
+            <path d="M12.5 3.247a1 1 0 0 0-1 0L4 7.577V21h5v-6a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v6h5V7.577l-7.5-4.33z" />
+          </svg>
+          Home
         </button>
-        <button class="circle" title="Forward">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="#fff"><path d="M8.5 3.5L17 12l-8.5 8.5L7 19l7-7-7-7z"/></svg>
+        <button class="nav-item" data-page="search">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.279 7.407-7.279s7.407 3.273 7.407 7.279-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.279z" />
+          </svg>
+          Search
         </button>
       </div>
-      <div class="searchbar">
-        <svg viewBox="0 0 24 24"><path d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.279 7.407-7.279s7.407 3.273 7.407 7.279-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.279z"/></svg>
-        <input type="text" id="topSearchInput" placeholder="What do you want to play?">
-      </div>
-      <div style="width:80px;"></div>
-    </div>
-
-    <div class="content">
-
-      <!-- HOME PAGE -->
-      <section class="page active" id="page-home">
-        <h1 class="page-title">Good evening</h1>
-        <div class="stat-strip" id="statStrip"></div>
-        <h2 class="section-title">All Songs</h2>
-        <div id="homeSongsContainer"><div class="loading"><div class="spinner"></div> Loading songs…</div></div>
-      </section>
-
-      <!-- SEARCH PAGE -->
-      <section class="page" id="page-search">
-        <h1 class="page-title">Search</h1>
-        <div class="searchbar" style="max-width:480px; margin-bottom:24px;">
-          <svg viewBox="0 0 24 24"><path d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.279 7.407-7.279s7.407 3.273 7.407 7.279-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.279z"/></svg>
-          <input type="text" id="searchPageInput" placeholder="Search by song title or artist...">
-        </div>
-        <div class="api-note">GET /songs/search?q=&lt;query&gt;</div>
-        <div id="searchResults" style="margin-top:20px;">
-          <div class="empty-state">
-            <svg viewBox="0 0 24 24"><path d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.279 7.407-7.279s7.407 3.273 7.407 7.279-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.279z"/></svg>
-            <p>Start typing to search songs by title or artist</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- RECOMMEND PAGE -->
-      <section class="page" id="page-recommend">
-        <h1 class="page-title">Recommendations</h1>
-        <p style="color:var(--text-subdued); margin-bottom:16px;">Select a song to find 10 similar tracks.</p>
-        <div class="api-note" style="margin-bottom:16px;">GET /recommend/{song_id}</div>
-        <div class="form-group" style="max-width:420px; margin-bottom:24px;">
-          <label for="recommendSelect">Choose a song</label>
-          <select id="recommendSelect"><option value="">Loading songs…</option></select>
-        </div>
-        <button class="btn btn-primary" id="getRecommendationsBtn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="#000"><path d="M8 5v14l11-7z"/></svg>
-          Get Recommendations
+      <div class="sidebar-divider"></div>
+      <div class="nav-section">
+        <div
+          style="padding:0 12px; color:var(--text-subdued); font-size:12px; font-weight:700; text-transform:uppercase; margin-bottom:4px;">
+          Tools</div>
+        <button class="nav-item" data-page="recommend">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+          </svg>
+          Recommendations
         </button>
-        <h2 class="section-title" id="recTitle" style="display:none;"></h2>
-        <div id="recommendResults"></div>
-      </section>
+        <button class="nav-item" data-page="genre">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z" />
+          </svg>
+          Predict Genre
+        </button>
+        <button class="nav-item" data-page="popularity">
+          <svg viewBox="0 0 24 24">
+            <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z" />
+          </svg>
+          Predict Popularity
+        </button>
+        <button class="nav-item" data-page="add">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4z" />
+          </svg>
+          Add Song
+        </button>
+      </div>
+      <div class="sidebar-card">
+        <strong>API Status</strong>
+        <span id="apiStatusText">Connected to dummy endpoints — using local fallback data for demo.</span>
+      </div>
+    </nav>
 
-      <!-- GENRE PAGE -->
-      <section class="page" id="page-genre">
-        <h1 class="page-title">Predict Genre</h1>
-        <p style="color:var(--text-subdued); margin-bottom:8px;">Enter audio features to predict a song's genre.</p>
-        <div class="api-note">POST /predict-genre</div>
-        <div class="panel">
-          <div class="form-grid" id="genreFormGrid"></div>
-          <div class="btn-row">
-            <button class="btn btn-primary" id="predictGenreBtn">Predict Genre</button>
-            <button class="btn btn-secondary" id="genreRandomizeBtn">Randomize Features</button>
-          </div>
-          <div class="result-box" id="genreResultBox">
-            <div class="genre-result">
-              <div style="color:var(--text-subdued); font-size:13px;">Predicted Genre</div>
-              <div class="genre-chip" id="genreChipResult">—</div>
-              <div class="genre-confidence" id="genreConfidenceResult"></div>
-            </div>
-          </div>
+    <!-- MAIN -->
+    <main class="main">
+      <div class="topbar">
+        <div class="topbar-nav">
+          <button class="circle" title="Back">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="#fff">
+              <path d="M15.5 3.5L7 12l8.5 8.5 1.5-1.5L10 12l7-7z" />
+            </svg>
+          </button>
+          <button class="circle" title="Forward">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="#fff">
+              <path d="M8.5 3.5L17 12l-8.5 8.5L7 19l7-7-7-7z" />
+            </svg>
+          </button>
         </div>
-      </section>
-
-      <!-- POPULARITY PAGE -->
-      <section class="page" id="page-popularity">
-        <h1 class="page-title">Predict Popularity</h1>
-        <p style="color:var(--text-subdued); margin-bottom:8px;">Predict a song's popularity score (0–100) from its audio features.</p>
-        <div class="api-note">POST /predict-popularity</div>
-        <div class="panel">
-          <div class="form-grid" id="popularityFormGrid"></div>
-          <div class="btn-row">
-            <button class="btn btn-primary" id="predictPopularityBtn">Predict Popularity</button>
-            <button class="btn btn-secondary" id="popularityRandomizeBtn">Randomize Features</button>
-          </div>
-          <div class="result-box" id="popularityResultBox">
-            <div style="text-align:center; color:var(--text-subdued); font-size:13px;">Predicted Popularity Score</div>
-            <div class="popularity-score" id="popularityScoreResult">0</div>
-            <div class="popularity-meter"><div class="popularity-fill" id="popularityFill"></div></div>
-          </div>
+        <div class="searchbar">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.279 7.407-7.279s7.407 3.273 7.407 7.279-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.279z" />
+          </svg>
+          <input type="text" id="topSearchInput" placeholder="What do you want to play?">
         </div>
-      </section>
+        <div style="width:80px;"></div>
+      </div>
 
-      <!-- ADD SONG PAGE -->
-      <section class="page" id="page-add">
-        <h1 class="page-title">Add New Song</h1>
-        <p style="color:var(--text-subdued); margin-bottom:8px;">Add a new song to the database.</p>
-        <div class="api-note">POST /songs</div>
-        <div class="panel">
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="addTitle">Title</label>
-              <input type="text" id="addTitle" placeholder="Song title">
+      <div class="content">
+
+        <!-- HOME PAGE -->
+        <section class="page active" id="page-home">
+          <h1 class="page-title">Good evening</h1>
+          <div class="stat-strip" id="statStrip"></div>
+          <h2 class="section-title">All Songs</h2>
+          <div id="homeSongsContainer">
+            <div class="loading">
+              <div class="spinner"></div> Loading songs…
             </div>
-            <div class="form-group">
-              <label for="addArtist">Artist</label>
-              <input type="text" id="addArtist" placeholder="Artist name">
-            </div>
-            <div class="form-group">
-              <label for="addAlbum">Album</label>
-              <input type="text" id="addAlbum" placeholder="Album name">
-            </div>
-            <div class="form-group">
-              <label for="addGenre">Genre</label>
-              <select id="addGenre">
-                <option>Pop</option><option>Hip-Hop</option><option>Rock</option>
-                <option>Electronic</option><option>R&B</option><option>Jazz</option>
-                <option>Classical</option><option>Country</option><option>Afrobeat</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="addDuration">Duration (seconds)</label>
-              <input type="number" id="addDuration" placeholder="210" min="1">
-            </div>
-            <div class="form-group">
-              <label for="addYear">Release Year</label>
-              <input type="number" id="addYear" placeholder="2024" min="1900" max="2100">
-            </div>
-            <div class="form-group full" id="addAudioFeatures"></div>
           </div>
-          <div class="btn-row">
-            <button class="btn btn-primary" id="addSongBtn">Add Song to Database</button>
-            <button class="btn btn-secondary" id="addSongClearBtn">Clear Form</button>
+        </section>
+
+        <!-- SEARCH PAGE -->
+        <section class="page" id="page-search">
+          <h1 class="page-title">Search</h1>
+          <div class="searchbar" style="max-width:480px; margin-bottom:24px;">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.279 7.407-7.279s7.407 3.273 7.407 7.279-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.279z" />
+            </svg>
+            <input type="text" id="searchPageInput" placeholder="Search by song title or artist...">
           </div>
-        </div>
-      </section>
+          <div class="api-note">GET /songs/search?q=&lt;query&gt;</div>
+          <div id="searchResults" style="margin-top:20px;">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.279 7.407-7.279s7.407 3.273 7.407 7.279-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.279z" />
+              </svg>
+              <p>Start typing to search songs by title or artist</p>
+            </div>
+          </div>
+        </section>
 
-    </div>
-  </main>
-</div>
+        <!-- RECOMMEND PAGE -->
+        <section class="page" id="page-recommend">
+          <h1 class="page-title">Recommendations</h1>
+          <p style="color:var(--text-subdued); margin-bottom:16px;">Select a song to find 10 similar tracks.</p>
+          <div class="api-note" style="margin-bottom:16px;">GET /recommend/{song_id}</div>
+          <div class="form-group" style="max-width:420px; margin-bottom:24px;">
+            <label for="recommendSelect">Choose a song</label>
+            <select id="recommendSelect">
+              <option value="">Loading songs…</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="getRecommendationsBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#000">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+            Get Recommendations
+          </button>
+          <h2 class="section-title" id="recTitle" style="display:none;"></h2>
+          <div id="recommendResults"></div>
+        </section>
 
-<div class="toast-container" id="toastContainer"></div>
+        <!-- GENRE PAGE -->
+        <section class="page" id="page-genre">
+          <h1 class="page-title">Predict Genre</h1>
+          <p style="color:var(--text-subdued); margin-bottom:8px;">Enter audio features to predict a song's genre.</p>
+          <div class="api-note">POST /predict-genre</div>
+          <div class="panel">
+            <div class="form-grid" id="genreFormGrid"></div>
+            <div class="btn-row">
+              <button class="btn btn-primary" id="predictGenreBtn">Predict Genre</button>
+              <button class="btn btn-secondary" id="genreRandomizeBtn">Randomize Features</button>
+            </div>
+            <div class="result-box" id="genreResultBox">
+              <div class="genre-result">
+                <div style="color:var(--text-subdued); font-size:13px;">Predicted Genre</div>
+                <div class="genre-chip" id="genreChipResult">—</div>
+                <div class="genre-confidence" id="genreConfidenceResult"></div>
+              </div>
+            </div>
+          </div>
+        </section>
 
-<script>
-/* =========================================================
-   DUMMY API CONFIG
-   ========================================================= */
-const API_BASE = "https://api.soundwave-dummy.example.com/v1";
-const ENDPOINTS = {
-  songs: () => `${API_BASE}/songs`,
-  search: (q) => `${API_BASE}/songs/search?q=${encodeURIComponent(q)}`,
-  recommend: (id) => `${API_BASE}/recommend/${id}`,
-  predictPopularity: () => `${API_BASE}/predict-popularity`,
-  predictGenre: () => `${API_BASE}/predict-genre`,
-  addSong: () => `${API_BASE}/songs`,
-};
+        <!-- POPULARITY PAGE -->
+        <section class="page" id="page-popularity">
+          <h1 class="page-title">Predict Popularity</h1>
+          <p style="color:var(--text-subdued); margin-bottom:8px;">Predict a song's popularity score (0–100) from its
+            audio features.</p>
+          <div class="api-note">POST /predict-popularity</div>
+          <div class="panel">
+            <div class="form-grid" id="popularityFormGrid"></div>
+            <div class="btn-row">
+              <button class="btn btn-primary" id="predictPopularityBtn">Predict Popularity</button>
+              <button class="btn btn-secondary" id="popularityRandomizeBtn">Randomize Features</button>
+            </div>
+            <div class="result-box" id="popularityResultBox">
+              <div style="text-align:center; color:var(--text-subdued); font-size:13px;">Predicted Popularity Score
+              </div>
+              <div class="popularity-score" id="popularityScoreResult">0</div>
+              <div class="popularity-meter">
+                <div class="popularity-fill" id="popularityFill"></div>
+              </div>
+            </div>
+          </div>
+        </section>
 
-/* =========================================================
-   LOCAL MOCK DATA (used as a fallback since the API above
-   is a set of dummy / non-existent endpoints per the spec)
-   ========================================================= */
-const GENRES = ["Pop","Hip-Hop","Rock","Electronic","R&B","Jazz","Classical","Country","Afrobeat"];
-const ARTIST_ICONS = ["🎧","🎤","🎸","🎹","🥁","🎺","🎷","🎻","🪕"];
+        <!-- ADD SONG PAGE -->
+        <section class="page" id="page-add">
+          <h1 class="page-title">Add New Song</h1>
+          <p style="color:var(--text-subdued); margin-bottom:8px;">Add a new song to the database.</p>
+          <div class="api-note">POST /songs</div>
+          <div class="panel">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="addTitle">Title</label>
+                <input type="text" id="addTitle" placeholder="Song title">
+              </div>
+              <div class="form-group">
+                <label for="addArtist">Artist</label>
+                <input type="text" id="addArtist" placeholder="Artist name">
+              </div>
+              <div class="form-group">
+                <label for="addAlbum">Album</label>
+                <input type="text" id="addAlbum" placeholder="Album name">
+              </div>
+              <div class="form-group">
+                <label for="addGenre">Genre</label>
+                <select id="addGenre">
+                  <option>Pop</option>
+                  <option>Hip-Hop</option>
+                  <option>Rock</option>
+                  <option>Electronic</option>
+                  <option>R&B</option>
+                  <option>Jazz</option>
+                  <option>Classical</option>
+                  <option>Country</option>
+                  <option>Afrobeat</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="addDuration">Duration (seconds)</label>
+                <input type="number" id="addDuration" placeholder="210" min="1">
+              </div>
+              <div class="form-group">
+                <label for="addYear">Release Year</label>
+                <input type="number" id="addYear" placeholder="2024" min="1900" max="2100">
+              </div>
+              <div class="form-group full" id="addAudioFeatures"></div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-primary" id="addSongBtn">Add Song to Database</button>
+              <button class="btn btn-secondary" id="addSongClearBtn">Clear Form</button>
+            </div>
+          </div>
+        </section>
 
-function randFeatures(){
-  return {
-    danceability: +(Math.random()).toFixed(2),
-    energy: +(Math.random()).toFixed(2),
-    valence: +(Math.random()).toFixed(2),
-    tempo: Math.floor(60 + Math.random()*120),
-    acousticness: +(Math.random()).toFixed(2),
-    instrumentalness: +(Math.random()).toFixed(2),
-    liveness: +(Math.random()).toFixed(2),
-    speechiness: +(Math.random()).toFixed(2),
-  };
-}
+      </div>
+    </main>
+  </div>
 
-function seedSongs(){
-  const titles = [
-    ["Midnight Glow","Nova Ray"],["Electric Skyline","The Voltz"],["Golden Hour","Amara Lane"],
-    ["Concrete Dreams","MC Riven"],["Static Bloom","Kiln"],["Velvet Rain","Nova Ray"],
-    ["Neon Tide","The Voltz"],["Paper Moon","June Ashworth"],["Broken Chords","Grit & Gold"],
-    ["Savanna Nights","Zuri Beats"],["Glass Horizon","Amara Lane"],["Wildfire","MC Riven"],
-    ["Slow Burn","June Ashworth"],["Afterglow","Kiln"],["Lagos Nights","Zuri Beats"],
-    ["Empire State of Mind Pt.2","Grit & Gold"],["Ocean Drive","Nova Ray"],["Hollow Bones","The Voltz"],
-    ["City Lights","Amara Lane"],["Rebel Heart","MC Riven"],
-  ];
-  return titles.map((t, i) => ({
-    id: `song_${i+1}`,
-    title: t[0],
-    artist: t[1],
-    album: `${t[1]} — Sessions Vol. ${1 + (i % 3)}`,
-    genre: GENRES[i % GENRES.length],
-    duration: 150 + Math.floor(Math.random()*120),
-    year: 2016 + (i % 9),
-    icon: ARTIST_ICONS[i % ARTIST_ICONS.length],
-    popularity: 30 + Math.floor(Math.random()*70),
-    features: randFeatures(),
-  }));
-}
+  <div class="toast-container" id="toastContainer"></div>
 
-let SONGS_DB = seedSongs();
+  <script>
+    /* =========================================================
+       DUMMY API CONFIG
+       ========================================================= */
+    const API_BASE = "http://127.0.0.1:8000";
+    const ENDPOINTS = {
+      songs: () => `${API_BASE}/songs`,
+      search: (q) => `${API_BASE}/songs/search?q=${encodeURIComponent(q)}`,
+      recommend: (id) => `${API_BASE}/recommend/${id}`,
+      predictPopularity: () => `${API_BASE}/predict-popularity`,
+      predictGenre: () => `${API_BASE}/predict-genre`,
+      addSong: () => `${API_BASE}/songs`,
+    };
 
-function fmtDuration(sec){
-  const m = Math.floor(sec/60);
-  const s = sec % 60;
-  return `${m}:${s.toString().padStart(2,'0')}`;
-}
+    /* =========================================================
+       LOCAL MOCK DATA (used as a fallback since the API above
+       is a set of dummy / non-existent endpoints per the spec)
+       ========================================================= */
+    const GENRES = ["Pop", "Hip-Hop", "Rock", "Electronic", "R&B", "Jazz", "Classical", "Country", "Afrobeat"];
+    const ARTIST_ICONS = ["🎧", "🎤", "🎸", "🎹", "🥁", "🎺", "🎷", "🎻", "🪕"];
 
-/* =========================================================
-   API WRAPPER
-   Attempts a real fetch to the dummy endpoint first (as
-   specified), and falls back to local mock logic since
-   these endpoints don't actually exist / resolve.
-   ========================================================= */
-async function apiCall(url, options = {}, fallbackFn){
-  try{
-    const res = await fetch(url, { ...options, signal: AbortSignal.timeout(2500) });
-    if(!res.ok) throw new Error(`Status ${res.status}`);
-    return await res.json();
-  }catch(err){
-    // Dummy endpoint unreachable — use local fallback so the UI stays functional.
-    return fallbackFn();
-  }
-}
+    function randFeatures() {
+      return {
+        danceability: +(Math.random()).toFixed(2),
+        energy: +(Math.random()).toFixed(2),
+        valence: +(Math.random()).toFixed(2),
+        tempo: Math.floor(60 + Math.random() * 120),
+        acousticness: +(Math.random()).toFixed(2),
+        instrumentalness: +(Math.random()).toFixed(2),
+        liveness: +(Math.random()).toFixed(2),
+        speechiness: +(Math.random()).toFixed(2),
+      };
+    }
 
-/* =========================================================
-   TOASTS
-   ========================================================= */
-function showToast(message, type = "success"){
-  const container = document.getElementById('toastContainer');
-  const toast = document.createElement('div');
-  toast.className = `toast ${type === 'error' ? 'error' : ''}`;
-  toast.textContent = message;
-  container.appendChild(toast);
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transition = 'opacity .3s ease';
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
-}
+    function seedSongs() {
+      const titles = [
+        ["Midnight Glow", "Nova Ray"], ["Electric Skyline", "The Voltz"], ["Golden Hour", "Amara Lane"],
+        ["Concrete Dreams", "MC Riven"], ["Static Bloom", "Kiln"], ["Velvet Rain", "Nova Ray"],
+        ["Neon Tide", "The Voltz"], ["Paper Moon", "June Ashworth"], ["Broken Chords", "Grit & Gold"],
+        ["Savanna Nights", "Zuri Beats"], ["Glass Horizon", "Amara Lane"], ["Wildfire", "MC Riven"],
+        ["Slow Burn", "June Ashworth"], ["Afterglow", "Kiln"], ["Lagos Nights", "Zuri Beats"],
+        ["Empire State of Mind Pt.2", "Grit & Gold"], ["Ocean Drive", "Nova Ray"], ["Hollow Bones", "The Voltz"],
+        ["City Lights", "Amara Lane"], ["Rebel Heart", "MC Riven"],
+      ];
+      return titles.map((t, i) => ({
+        id: `song_${i + 1}`,
+        title: t[0],
+        artist: t[1],
+        album: `${t[1]} — Sessions Vol. ${1 + (i % 3)}`,
+        genre: GENRES[i % GENRES.length],
+        duration: 150 + Math.floor(Math.random() * 120),
+        year: 2016 + (i % 9),
+        icon: ARTIST_ICONS[i % ARTIST_ICONS.length],
+        popularity: 30 + Math.floor(Math.random() * 70),
+        features: randFeatures(),
+      }));
+    }
 
-/* =========================================================
-   NAVIGATION
-   ========================================================= */
-const navItems = document.querySelectorAll('.nav-item[data-page]');
-const pages = document.querySelectorAll('.page');
-function goToPage(pageId){
-  pages.forEach(p => p.classList.remove('active'));
-  document.getElementById(`page-${pageId}`).classList.add('active');
-  navItems.forEach(n => n.classList.toggle('active', n.dataset.page === pageId));
-  document.querySelector('.content').parentElement.scrollTop = 0;
-}
-navItems.forEach(item => {
-  item.addEventListener('click', () => goToPage(item.dataset.page));
-});
+    let SONGS_DB = seedSongs();
 
-/* =========================================================
-   HOME PAGE — GET /songs
-   ========================================================= */
-function renderStatStrip(){
-  const strip = document.getElementById('statStrip');
-  const avgPop = Math.round(SONGS_DB.reduce((a,s)=>a+s.popularity,0)/SONGS_DB.length);
-  const genreCount = new Set(SONGS_DB.map(s=>s.genre)).size;
-  strip.innerHTML = `
+    function fmtDuration(sec) {
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    /* =========================================================
+       API WRAPPER
+       Attempts a real fetch to the dummy endpoint first (as
+       specified), and falls back to local mock logic since
+       these endpoints don't actually exist / resolve.
+       ========================================================= */
+    async function apiCall(url, options = {}, fallbackFn) {
+      try {
+        const res = await fetch(url, { ...options, signal: AbortSignal.timeout(2500) });
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        return await res.json();
+      } catch (err) {
+        // Dummy endpoint unreachable — use local fallback so the UI stays functional.
+        return fallbackFn();
+      }
+    }
+
+    /* =========================================================
+       TOASTS
+       ========================================================= */
+    function showToast(message, type = "success") {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type === 'error' ? 'error' : ''}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity .3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    /* =========================================================
+       NAVIGATION
+       ========================================================= */
+    const navItems = document.querySelectorAll('.nav-item[data-page]');
+    const pages = document.querySelectorAll('.page');
+    function goToPage(pageId) {
+      pages.forEach(p => p.classList.remove('active'));
+      document.getElementById(`page-${pageId}`).classList.add('active');
+      navItems.forEach(n => n.classList.toggle('active', n.dataset.page === pageId));
+      document.querySelector('.content').parentElement.scrollTop = 0;
+    }
+    navItems.forEach(item => {
+      item.addEventListener('click', () => goToPage(item.dataset.page));
+    });
+
+    /* =========================================================
+       HOME PAGE — GET /songs
+       ========================================================= */
+    function renderStatStrip() {
+      const strip = document.getElementById('statStrip');
+      const avgPop = Math.round(SONGS_DB.reduce((a, s) => a + s.popularity, 0) / SONGS_DB.length);
+      const genreCount = new Set(SONGS_DB.map(s => s.genre)).size;
+      strip.innerHTML = `
     <div class="stat-pill"><div class="num">${SONGS_DB.length}</div><div class="lbl">Total Songs</div></div>
     <div class="stat-pill"><div class="num">${genreCount}</div><div class="lbl">Genres</div></div>
     <div class="stat-pill"><div class="num">${avgPop}</div><div class="lbl">Avg. Popularity</div></div>
   `;
-}
+    }
 
-function songRowHTML(song, showActions = true){
-  return `
+    function songRowHTML(song, showActions = true) {
+      return `
     <tr class="song-row" data-id="${song.id}">
       <td>
         <div class="song-cell">
@@ -813,27 +1222,28 @@ function songRowHTML(song, showActions = true){
       </td>
     </tr>
   `;
-}
+    }
 
-function escapeHTML(str){
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
+    function escapeHTML(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
 
-async function loadHomeSongs(){
-  renderStatStrip();
-  const container = document.getElementById('homeSongsContainer');
-  container.innerHTML = `<div class="loading"><div class="spinner"></div> Loading songs…</div>`;
+    async function loadHomeSongs() {
+      renderStatStrip();
+      const container = document.getElementById('homeSongsContainer');
+      container.innerHTML = `<div class="loading"><div class="spinner"></div> Loading songs…</div>`;
 
-  const songs = await apiCall(ENDPOINTS.songs(), {}, () => SONGS_DB);
+      const songs = await apiCall(ENDPOINTS.songs(), {}, () => SONGS_DB);
+      console.log(songs);
 
-  if(!songs || songs.length === 0){
-    container.innerHTML = `<div class="empty-state"><p>No songs found in the database.</p></div>`;
-    return;
-  }
+      if (!songs || songs.length === 0) {
+        container.innerHTML = `<div class="empty-state"><p>No songs found in the database.</p></div>`;
+        return;
+      }
 
-  container.innerHTML = `
+      container.innerHTML = `
     <table class="song-table">
       <thead>
         <tr>
@@ -846,119 +1256,119 @@ async function loadHomeSongs(){
     </table>
   `;
 
-  attachRowHandlers(container);
-}
+      attachRowHandlers(container);
+    }
 
-function attachRowHandlers(container){
-  container.querySelectorAll('.recommend-icon').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const id = btn.dataset.id;
-      goToPage('recommend');
-      document.getElementById('recommendSelect').value = id;
-      fetchRecommendations(id);
-    });
-  });
-  container.querySelectorAll('.song-row').forEach(row => {
-    row.addEventListener('click', () => {
-      const id = row.dataset.id;
-      goToPage('recommend');
-      document.getElementById('recommendSelect').value = id;
-      fetchRecommendations(id);
-    });
-  });
-}
+    function attachRowHandlers(container) {
+      container.querySelectorAll('.recommend-icon').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.dataset.id;
+          goToPage('recommend');
+          document.getElementById('recommendSelect').value = id;
+          fetchRecommendations(id);
+        });
+      });
+      container.querySelectorAll('.song-row').forEach(row => {
+        row.addEventListener('click', () => {
+          const id = row.dataset.id;
+          goToPage('recommend');
+          document.getElementById('recommendSelect').value = id;
+          fetchRecommendations(id);
+        });
+      });
+    }
 
-/* =========================================================
-   SEARCH PAGE — GET /songs/search?q=
-   ========================================================= */
-function fallbackSearch(query){
-  const q = query.trim().toLowerCase();
-  if(!q) return [];
-  return SONGS_DB.filter(s =>
-    s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)
-  );
-}
+    /* =========================================================
+       SEARCH PAGE — GET /songs/search?q=
+       ========================================================= */
+    function fallbackSearch(query) {
+      const q = query.trim().toLowerCase();
+      if (!q) return [];
+      return SONGS_DB.filter(s =>
+        s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)
+      );
+    }
 
-let searchDebounce;
-function handleSearchInput(query){
-  clearTimeout(searchDebounce);
-  const resultsDiv = document.getElementById('searchResults');
-  if(!query.trim()){
-    resultsDiv.innerHTML = `
+    let searchDebounce;
+    function handleSearchInput(query) {
+      clearTimeout(searchDebounce);
+      const resultsDiv = document.getElementById('searchResults');
+      if (!query.trim()) {
+        resultsDiv.innerHTML = `
       <div class="empty-state">
         <svg viewBox="0 0 24 24"><path d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.279 7.407-7.279s7.407 3.273 7.407 7.279-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.279z"/></svg>
         <p>Start typing to search songs by title or artist</p>
       </div>`;
-    return;
-  }
-  resultsDiv.innerHTML = `<div class="loading"><div class="spinner"></div> Searching…</div>`;
-  searchDebounce = setTimeout(async () => {
-    const results = await apiCall(ENDPOINTS.search(query), {}, () => fallbackSearch(query));
-    if(!results || results.length === 0){
-      resultsDiv.innerHTML = `<div class="empty-state"><p>No results for "${escapeHTML(query)}"</p></div>`;
-      return;
-    }
-    resultsDiv.innerHTML = `
+        return;
+      }
+      resultsDiv.innerHTML = `<div class="loading"><div class="spinner"></div> Searching…</div>`;
+      searchDebounce = setTimeout(async () => {
+        const results = await apiCall(ENDPOINTS.search(query), {}, () => fallbackSearch(query));
+        if (!results || results.length === 0) {
+          resultsDiv.innerHTML = `<div class="empty-state"><p>No results for "${escapeHTML(query)}"</p></div>`;
+          return;
+        }
+        resultsDiv.innerHTML = `
       <table class="song-table">
         <thead><tr><th>Title</th><th>Album</th><th>Genre</th><th>Duration</th><th>Year</th><th></th></tr></thead>
         <tbody>${results.map(s => songRowHTML(s)).join('')}</tbody>
       </table>
     `;
-    attachRowHandlers(resultsDiv);
-  }, 350);
-}
-document.getElementById('searchPageInput').addEventListener('input', (e) => handleSearchInput(e.target.value));
-document.getElementById('topSearchInput').addEventListener('input', (e) => {
-  goToPage('search');
-  document.getElementById('searchPageInput').value = e.target.value;
-  handleSearchInput(e.target.value);
-});
+        attachRowHandlers(resultsDiv);
+      }, 350);
+    }
+    document.getElementById('searchPageInput').addEventListener('input', (e) => handleSearchInput(e.target.value));
+    document.getElementById('topSearchInput').addEventListener('input', (e) => {
+      goToPage('search');
+      document.getElementById('searchPageInput').value = e.target.value;
+      handleSearchInput(e.target.value);
+    });
 
-/* =========================================================
-   RECOMMEND PAGE — GET /recommend/{song_id}
-   ========================================================= */
-function populateRecommendSelect(){
-  const select = document.getElementById('recommendSelect');
-  select.innerHTML = SONGS_DB.map(s => `<option value="${s.id}">${escapeHTML(s.title)} — ${escapeHTML(s.artist)}</option>`).join('');
-}
+    /* =========================================================
+       RECOMMEND PAGE — GET /recommend/{song_id}
+       ========================================================= */
+    function populateRecommendSelect() {
+      const select = document.getElementById('recommendSelect');
+      select.innerHTML = SONGS_DB.map(s => `<option value="${s.id}">${escapeHTML(s.title)} — ${escapeHTML(s.artist)}</option>`).join('');
+    }
 
-function fallbackRecommend(songId){
-  const base = SONGS_DB.find(s => s.id === songId);
-  if(!base) return [];
-  const others = SONGS_DB.filter(s => s.id !== songId);
-  // simple pseudo-similarity: same genre boosted, then random
-  const scored = others.map(s => {
-    let score = Math.random() * 0.5;
-    if(s.genre === base.genre) score += 0.4;
-    score += (1 - Math.abs(s.features.energy - base.features.energy)) * 0.1;
-    return { ...s, similarity: Math.min(0.99, +score.toFixed(2)) };
-  });
-  scored.sort((a,b) => b.similarity - a.similarity);
-  return scored.slice(0, 10);
-}
+    function fallbackRecommend(songId) {
+      const base = SONGS_DB.find(s => s.id === songId);
+      if (!base) return [];
+      const others = SONGS_DB.filter(s => s.id !== songId);
+      // simple pseudo-similarity: same genre boosted, then random
+      const scored = others.map(s => {
+        let score = Math.random() * 0.5;
+        if (s.genre === base.genre) score += 0.4;
+        score += (1 - Math.abs(s.features.energy - base.features.energy)) * 0.1;
+        return { ...s, similarity: Math.min(0.99, +score.toFixed(2)) };
+      });
+      scored.sort((a, b) => b.similarity - a.similarity);
+      return scored.slice(0, 10);
+    }
 
-async function fetchRecommendations(songId){
-  const resultsDiv = document.getElementById('recommendResults');
-  const titleEl = document.getElementById('recTitle');
-  const base = SONGS_DB.find(s => s.id === songId);
-  titleEl.style.display = 'block';
-  titleEl.textContent = base ? `Because you selected "${base.title}"` : 'Recommendations';
-  resultsDiv.innerHTML = `<div class="loading"><div class="spinner"></div> Finding similar songs…</div>`;
+    async function fetchRecommendations(songId) {
+      const resultsDiv = document.getElementById('recommendResults');
+      const titleEl = document.getElementById('recTitle');
+      const base = SONGS_DB.find(s => s.id === songId);
+      titleEl.style.display = 'block';
+      titleEl.textContent = base ? `Because you selected "${base.title}"` : 'Recommendations';
+      resultsDiv.innerHTML = `<div class="loading"><div class="spinner"></div> Finding similar songs…</div>`;
 
-  const recs = await apiCall(ENDPOINTS.recommend(songId), {}, () => fallbackRecommend(songId));
+      const recs = await apiCall(ENDPOINTS.recommend(songId), {}, () => fallbackRecommend(songId));
 
-  if(!recs || recs.length === 0){
-    resultsDiv.innerHTML = `<div class="empty-state"><p>No recommendations available.</p></div>`;
-    return;
-  }
+      if (!recs || recs.length === 0) {
+        resultsDiv.innerHTML = `<div class="empty-state"><p>No recommendations available.</p></div>`;
+        return;
+      }
 
-  resultsDiv.innerHTML = `
+      resultsDiv.innerHTML = `
     <div class="card-grid">
       ${recs.map(s => `
         <div class="music-card" data-id="${s.id}">
           <div class="cover">
-            ${s.similarity !== undefined ? `<div class="similarity">${Math.round(s.similarity*100)}% match</div>` : ''}
+            ${s.similarity !== undefined ? `<div class="similarity">${Math.round(s.similarity * 100)}% match</div>` : ''}
             ${s.icon}
             <button class="play-fab" title="Play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
           </div>
@@ -969,36 +1379,36 @@ async function fetchRecommendations(songId){
     </div>
   `;
 
-  resultsDiv.querySelectorAll('.music-card').forEach(card => {
-    card.addEventListener('click', () => {
-      document.getElementById('recommendSelect').value = card.dataset.id;
-      fetchRecommendations(card.dataset.id);
-      window.scrollTo({top:0, behavior:'smooth'});
+      resultsDiv.querySelectorAll('.music-card').forEach(card => {
+        card.addEventListener('click', () => {
+          document.getElementById('recommendSelect').value = card.dataset.id;
+          fetchRecommendations(card.dataset.id);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+      });
+    }
+    document.getElementById('getRecommendationsBtn').addEventListener('click', () => {
+      const id = document.getElementById('recommendSelect').value;
+      if (id) fetchRecommendations(id);
     });
-  });
-}
-document.getElementById('getRecommendationsBtn').addEventListener('click', () => {
-  const id = document.getElementById('recommendSelect').value;
-  if(id) fetchRecommendations(id);
-});
 
-/* =========================================================
-   AUDIO FEATURE FORM BUILDER (used by genre + popularity + add)
-   ========================================================= */
-const FEATURE_DEFS = [
-  {key:'danceability', label:'Danceability', min:0, max:1, step:0.01, def:0.5},
-  {key:'energy', label:'Energy', min:0, max:1, step:0.01, def:0.5},
-  {key:'valence', label:'Valence (Positivity)', min:0, max:1, step:0.01, def:0.5},
-  {key:'tempo', label:'Tempo (BPM)', min:40, max:220, step:1, def:120},
-  {key:'acousticness', label:'Acousticness', min:0, max:1, step:0.01, def:0.3},
-  {key:'instrumentalness', label:'Instrumentalness', min:0, max:1, step:0.01, def:0.1},
-  {key:'liveness', label:'Liveness', min:0, max:1, step:0.01, def:0.15},
-  {key:'speechiness', label:'Speechiness', min:0, max:1, step:0.01, def:0.08},
-];
+    /* =========================================================
+       AUDIO FEATURE FORM BUILDER (used by genre + popularity + add)
+       ========================================================= */
+    const FEATURE_DEFS = [
+      { key: 'danceability', label: 'Danceability', min: 0, max: 1, step: 0.01, def: 0.5 },
+      { key: 'energy', label: 'Energy', min: 0, max: 1, step: 0.01, def: 0.5 },
+      { key: 'valence', label: 'Valence (Positivity)', min: 0, max: 1, step: 0.01, def: 0.5 },
+      { key: 'tempo', label: 'Tempo (BPM)', min: 40, max: 220, step: 1, def: 120 },
+      { key: 'acousticness', label: 'Acousticness', min: 0, max: 1, step: 0.01, def: 0.3 },
+      { key: 'instrumentalness', label: 'Instrumentalness', min: 0, max: 1, step: 0.01, def: 0.1 },
+      { key: 'liveness', label: 'Liveness', min: 0, max: 1, step: 0.01, def: 0.15 },
+      { key: 'speechiness', label: 'Speechiness', min: 0, max: 1, step: 0.01, def: 0.08 },
+    ];
 
-function buildFeatureForm(containerId, prefix){
-  const container = document.getElementById(containerId);
-  container.innerHTML = FEATURE_DEFS.map(f => `
+    function buildFeatureForm(containerId, prefix) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = FEATURE_DEFS.map(f => `
     <div class="form-group">
       <label for="${prefix}_${f.key}">${f.label}</label>
       <div class="slider-row">
@@ -1008,174 +1418,175 @@ function buildFeatureForm(containerId, prefix){
       </div>
     </div>
   `).join('');
-}
+    }
 
-function readFeatureForm(prefix){
-  const obj = {};
-  FEATURE_DEFS.forEach(f => {
-    obj[f.key] = parseFloat(document.getElementById(`${prefix}_${f.key}`).value);
-  });
-  return obj;
-}
+    function readFeatureForm(prefix) {
+      const obj = {};
+      FEATURE_DEFS.forEach(f => {
+        obj[f.key] = parseFloat(document.getElementById(`${prefix}_${f.key}`).value);
+      });
+      return obj;
+    }
 
-function randomizeFeatureForm(prefix){
-  FEATURE_DEFS.forEach(f => {
-    const val = f.key === 'tempo'
-      ? Math.floor(f.min + Math.random()*(f.max-f.min))
-      : +(f.min + Math.random()*(f.max-f.min)).toFixed(2);
-    document.getElementById(`${prefix}_${f.key}`).value = val;
-    document.getElementById(`${prefix}_${f.key}_val`).textContent = val;
-  });
-}
+    function randomizeFeatureForm(prefix) {
+      FEATURE_DEFS.forEach(f => {
+        const val = f.key === 'tempo'
+          ? Math.floor(f.min + Math.random() * (f.max - f.min))
+          : +(f.min + Math.random() * (f.max - f.min)).toFixed(2);
+        document.getElementById(`${prefix}_${f.key}`).value = val;
+        document.getElementById(`${prefix}_${f.key}_val`).textContent = val;
+      });
+    }
 
-buildFeatureForm('genreFormGrid', 'genre');
-buildFeatureForm('popularityFormGrid', 'pop');
-buildFeatureForm('addAudioFeatures', 'add');
+    buildFeatureForm('genreFormGrid', 'genre');
+    buildFeatureForm('popularityFormGrid', 'pop');
+    buildFeatureForm('addAudioFeatures', 'add');
 
-document.getElementById('genreRandomizeBtn').addEventListener('click', () => randomizeFeatureForm('genre'));
-document.getElementById('popularityRandomizeBtn').addEventListener('click', () => randomizeFeatureForm('pop'));
+    document.getElementById('genreRandomizeBtn').addEventListener('click', () => randomizeFeatureForm('genre'));
+    document.getElementById('popularityRandomizeBtn').addEventListener('click', () => randomizeFeatureForm('pop'));
 
-/* =========================================================
-   PREDICT GENRE — POST /predict-genre
-   ========================================================= */
-function fallbackPredictGenre(features){
-  // deterministic-ish pseudo model based on feature heuristics
-  let genre = "Pop";
-  if(features.acousticness > 0.7 && features.energy < 0.4) genre = "Classical";
-  else if(features.speechiness > 0.4) genre = "Hip-Hop";
-  else if(features.energy > 0.75 && features.tempo > 140) genre = "Electronic";
-  else if(features.acousticness > 0.5 && features.tempo < 110) genre = "Country";
-  else if(features.instrumentalness > 0.6) genre = "Jazz";
-  else if(features.energy > 0.7 && features.valence < 0.4) genre = "Rock";
-  else if(features.valence > 0.6 && features.danceability > 0.6) genre = "R&B";
-  else if(features.liveness > 0.5) genre = "Afrobeat";
-  const confidence = Math.round(65 + Math.random()*30);
-  return { genre, confidence };
-}
+    /* =========================================================
+       PREDICT GENRE — POST /predict-genre
+       ========================================================= */
+    function fallbackPredictGenre(features) {
+      // deterministic-ish pseudo model based on feature heuristics
+      let genre = "Pop";
+      if (features.acousticness > 0.7 && features.energy < 0.4) genre = "Classical";
+      else if (features.speechiness > 0.4) genre = "Hip-Hop";
+      else if (features.energy > 0.75 && features.tempo > 140) genre = "Electronic";
+      else if (features.acousticness > 0.5 && features.tempo < 110) genre = "Country";
+      else if (features.instrumentalness > 0.6) genre = "Jazz";
+      else if (features.energy > 0.7 && features.valence < 0.4) genre = "Rock";
+      else if (features.valence > 0.6 && features.danceability > 0.6) genre = "R&B";
+      else if (features.liveness > 0.5) genre = "Afrobeat";
+      const confidence = Math.round(65 + Math.random() * 30);
+      return { genre, confidence };
+    }
 
-document.getElementById('predictGenreBtn').addEventListener('click', async () => {
-  const btn = document.getElementById('predictGenreBtn');
-  btn.disabled = true;
-  btn.textContent = "Predicting…";
-  const features = readFeatureForm('genre');
-  const result = await apiCall(ENDPOINTS.predictGenre(), {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(features)
-  }, () => fallbackPredictGenre(features));
+    document.getElementById('predictGenreBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('predictGenreBtn');
+      btn.disabled = true;
+      btn.textContent = "Predicting…";
+      const features = readFeatureForm('genre');
+      const result = await apiCall(ENDPOINTS.predictGenre(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(features)
+      }, () => fallbackPredictGenre(features));
 
-  document.getElementById('genreChipResult').textContent = result.genre;
-  document.getElementById('genreConfidenceResult').textContent = `Confidence: ${result.confidence}%`;
-  document.getElementById('genreResultBox').classList.add('show');
-  btn.disabled = false;
-  btn.textContent = "Predict Genre";
-  showToast(`Predicted genre: ${result.genre}`);
-});
+      document.getElementById('genreChipResult').textContent = result.genre;
+      document.getElementById('genreConfidenceResult').textContent = `Confidence: ${result.confidence}%`;
+      document.getElementById('genreResultBox').classList.add('show');
+      btn.disabled = false;
+      btn.textContent = "Predict Genre";
+      showToast(`Predicted genre: ${result.genre}`);
+    });
 
-/* =========================================================
-   PREDICT POPULARITY — POST /predict-popularity
-   ========================================================= */
-function fallbackPredictPopularity(features){
-  let score = 40;
-  score += features.danceability * 20;
-  score += features.energy * 15;
-  score += features.valence * 10;
-  score += (1 - features.acousticness) * 8;
-  score += (1 - features.instrumentalness) * 5;
-  score -= features.speechiness * 5;
-  score += (Math.random() * 10 - 5);
-  score = Math.max(0, Math.min(100, Math.round(score)));
-  return { popularity: score };
-}
+    /* =========================================================
+       PREDICT POPULARITY — POST /predict-popularity
+       ========================================================= */
+    function fallbackPredictPopularity(features) {
+      let score = 40;
+      score += features.danceability * 20;
+      score += features.energy * 15;
+      score += features.valence * 10;
+      score += (1 - features.acousticness) * 8;
+      score += (1 - features.instrumentalness) * 5;
+      score -= features.speechiness * 5;
+      score += (Math.random() * 10 - 5);
+      score = Math.max(0, Math.min(100, Math.round(score)));
+      return { popularity: score };
+    }
 
-document.getElementById('predictPopularityBtn').addEventListener('click', async () => {
-  const btn = document.getElementById('predictPopularityBtn');
-  btn.disabled = true;
-  btn.textContent = "Predicting…";
-  const features = readFeatureForm('pop');
-  const result = await apiCall(ENDPOINTS.predictPopularity(), {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(features)
-  }, () => fallbackPredictPopularity(features));
+    document.getElementById('predictPopularityBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('predictPopularityBtn');
+      btn.disabled = true;
+      btn.textContent = "Predicting…";
+      const features = readFeatureForm('pop');
+      const result = await apiCall(ENDPOINTS.predictPopularity(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(features)
+      }, () => fallbackPredictPopularity(features));
 
-  const box = document.getElementById('popularityResultBox');
-  const scoreEl = document.getElementById('popularityScoreResult');
-  const fillEl = document.getElementById('popularityFill');
-  box.classList.add('show');
-  scoreEl.textContent = result.popularity;
-  fillEl.style.width = '0%';
-  requestAnimationFrame(() => { fillEl.style.width = `${result.popularity}%`; });
-  btn.disabled = false;
-  btn.textContent = "Predict Popularity";
-  showToast(`Predicted popularity score: ${result.popularity}/100`);
-});
+      const box = document.getElementById('popularityResultBox');
+      const scoreEl = document.getElementById('popularityScoreResult');
+      const fillEl = document.getElementById('popularityFill');
+      box.classList.add('show');
+      scoreEl.textContent = result.popularity;
+      fillEl.style.width = '0%';
+      requestAnimationFrame(() => { fillEl.style.width = `${result.popularity}%`; });
+      btn.disabled = false;
+      btn.textContent = "Predict Popularity";
+      showToast(`Predicted popularity score: ${result.popularity}/100`);
+    });
 
-/* =========================================================
-   ADD SONG — POST /songs
-   ========================================================= */
-document.getElementById('addSongBtn').addEventListener('click', async () => {
-  const title = document.getElementById('addTitle').value.trim();
-  const artist = document.getElementById('addArtist').value.trim();
-  const album = document.getElementById('addAlbum').value.trim() || 'Single';
-  const genre = document.getElementById('addGenre').value;
-  const duration = parseInt(document.getElementById('addDuration').value) || 180;
-  const year = parseInt(document.getElementById('addYear').value) || new Date().getFullYear();
+    /* =========================================================
+       ADD SONG — POST /songs
+       ========================================================= */
+    document.getElementById('addSongBtn').addEventListener('click', async () => {
+      const title = document.getElementById('addTitle').value.trim();
+      const artist = document.getElementById('addArtist').value.trim();
+      const album = document.getElementById('addAlbum').value.trim() || 'Single';
+      const genre = document.getElementById('addGenre').value;
+      const duration = parseInt(document.getElementById('addDuration').value) || 180;
+      const year = parseInt(document.getElementById('addYear').value) || new Date().getFullYear();
 
-  if(!title || !artist){
-    showToast("Please fill in at least a title and artist.", "error");
-    return;
-  }
+      if (!title || !artist) {
+        showToast("Please fill in at least a title and artist.", "error");
+        return;
+      }
 
-  const features = readFeatureForm('add');
-  const payload = { title, artist, album, genre, duration, year, features };
+      const features = readFeatureForm('add');
+      const payload = { title, artist, album, genre, duration, year, features };
 
-  const btn = document.getElementById('addSongBtn');
-  btn.disabled = true;
-  btn.textContent = "Adding…";
+      const btn = document.getElementById('addSongBtn');
+      btn.disabled = true;
+      btn.textContent = "Adding…";
 
-  const newSong = await apiCall(ENDPOINTS.addSong(), {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(payload)
-  }, () => ({
-    id: `song_${SONGS_DB.length + 1}_${Date.now()}`,
-    title, artist, album, genre, duration, year,
-    icon: ARTIST_ICONS[SONGS_DB.length % ARTIST_ICONS.length],
-    popularity: fallbackPredictPopularity(features).popularity,
-    features
-  }));
+      const newSong = await apiCall(ENDPOINTS.addSong(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }, () => ({
+        id: `song_${SONGS_DB.length + 1}_${Date.now()}`,
+        title, artist, album, genre, duration, year,
+        icon: ARTIST_ICONS[SONGS_DB.length % ARTIST_ICONS.length],
+        popularity: fallbackPredictPopularity(features).popularity,
+        features
+      }));
 
-  SONGS_DB.push(newSong);
-  populateRecommendSelect();
-  renderStatStrip();
+      SONGS_DB.push(newSong);
+      populateRecommendSelect();
+      renderStatStrip();
 
-  btn.disabled = false;
-  btn.textContent = "Add Song to Database";
-  showToast(`"${title}" was added to the database!`);
-  clearAddForm();
-  loadHomeSongs();
-});
+      btn.disabled = false;
+      btn.textContent = "Add Song to Database";
+      showToast(`"${title}" was added to the database!`);
+      clearAddForm();
+      loadHomeSongs();
+    });
 
-function clearAddForm(){
-  document.getElementById('addTitle').value = '';
-  document.getElementById('addArtist').value = '';
-  document.getElementById('addAlbum').value = '';
-  document.getElementById('addGenre').selectedIndex = 0;
-  document.getElementById('addDuration').value = '';
-  document.getElementById('addYear').value = '';
-  buildFeatureForm('addAudioFeatures', 'add');
-}
-document.getElementById('addSongClearBtn').addEventListener('click', clearAddForm);
+    function clearAddForm() {
+      document.getElementById('addTitle').value = '';
+      document.getElementById('addArtist').value = '';
+      document.getElementById('addAlbum').value = '';
+      document.getElementById('addGenre').selectedIndex = 0;
+      document.getElementById('addDuration').value = '';
+      document.getElementById('addYear').value = '';
+      buildFeatureForm('addAudioFeatures', 'add');
+    }
+    document.getElementById('addSongClearBtn').addEventListener('click', clearAddForm);
 
-/* =========================================================
-   INIT
-   ========================================================= */
-async function init(){
-  await loadHomeSongs();
-  populateRecommendSelect();
-}
-init();
-</script>
+    /* =========================================================
+       INIT
+       ========================================================= */
+    async function init() {
+      await loadHomeSongs();
+      populateRecommendSelect();
+    }
+    init();
+  </script>
 </body>
+
 </html>
