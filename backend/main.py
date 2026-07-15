@@ -58,4 +58,3 @@ def search_songs(q=None):
             '''
     songs = execute_query(query)
     return songs
-
