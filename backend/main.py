@@ -26,12 +26,11 @@ def get_connection():
     return conn
 
 
-
-@app.get("/songs")
-def all_songs():
+def execute_query(query):
     conn=get_connection()
     cursor=conn.cursor()
-    cursor.execute("SELECT * FROM songs limit 50")
+    cursor.execute(query)
+
     songs= []
 
     song_objects = cursor.fetchall()
@@ -40,5 +39,23 @@ def all_songs():
     for s in song_objects:
         songs.append(dict(s))
 
+    return songs
+
+
+@app.get("/songs")
+def all_songs():
+    query = "SELECT * FROM songs limit 50"
+    songs = execute_query(query)
+    return songs
+
+
+@app.get("/songs/search")
+def search_songs(q=None):
+    query = f'''
+                select * from songs
+                where artists like "%{q}%"
+                or track_name like "%{q}%"
+            '''
+    songs = execute_query(query)
     return songs
 
