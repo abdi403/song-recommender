@@ -189,12 +189,16 @@
         </div>
         <button class="modal-close" id="modalCloseBtn" title="Close">&times;</button>
       </div>
-      <div class="modal-tabs">
-        <button class="modal-tab active" data-tab="spotify">Spotify</button>
-        <button class="modal-tab" data-tab="youtube">YouTube</button>
-        <button class="modal-tab" data-tab="recommend">Recommendations</button>
-        <button class="modal-tab" data-tab="features">Song Features</button>
-        <button class="modal-tab" data-tab="predict">Predict Features</button>
+      <div class="modal-tabs-wrapper">
+        <button class="modal-tab-arrow" id="modalTabsLeft" type="button" aria-label="Scroll tabs left">&#8249;</button>
+        <div class="modal-tabs" id="modalTabsScroll">
+          <button class="modal-tab active" data-tab="spotify">Spotify</button>
+          <button class="modal-tab" data-tab="youtube">YouTube</button>
+          <button class="modal-tab" data-tab="recommend">Recommendations</button>
+          <button class="modal-tab" data-tab="features">Song Features</button>
+          <button class="modal-tab" data-tab="predict">Predict Features</button>
+        </div>
+        <button class="modal-tab-arrow" id="modalTabsRight" type="button" aria-label="Scroll tabs right">&#8250;</button>
       </div>
       <div class="modal-body" id="modalBody"></div>
     </div>

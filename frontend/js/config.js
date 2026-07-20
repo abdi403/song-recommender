@@ -18,6 +18,9 @@ const ENDPOINTS = {
   songs: () => `${API_BASE}/songs`,
   search: (q) => `${API_BASE}/songs/search?q=${encodeURIComponent(q)}`,
   recommend: (id) => `${API_BASE}/recommend/${id}`,
-  predictFeatures: () => `${API_BASE}/predict-features`,
+  predictFeatures: (id) => `${API_BASE}/predict-features/${id}`,
   addSong: () => `${API_BASE}/songs`,
+  // NOTE: singular "song" (not "songs") — this is intentional, matching
+  // the backend's actual update route. Don't "fix" this into /songs/{id}.
+  updateSong: (id) => `${API_BASE}/song/${id}`,
 };

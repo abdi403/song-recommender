@@ -645,12 +645,46 @@ svg {
   background: var(--bg-highlight);
 }
 
+.modal-tabs-wrapper {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding: 0 8px;
+}
+
 .modal-tabs {
   display: flex;
   gap: 4px;
-  padding: 0 20px;
-  border-bottom: 1px solid var(--border);
   overflow-x: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.modal-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.modal-tab-arrow {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-subdued);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 8px 6px;
+  border-radius: 6px;
+}
+
+.modal-tab-arrow:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--bg-highlight);
+}
+
+.modal-tab-arrow:disabled {
+  opacity: 0.25;
+  cursor: default;
 }
 
 .modal-tab {
@@ -689,6 +723,11 @@ svg {
   color: var(--text-subdued);
   font-size: 13px;
   margin: 0;
+}
+
+.error-text {
+  color: var(--danger);
+  font-weight: 600;
 }
 
 .embed-frame {

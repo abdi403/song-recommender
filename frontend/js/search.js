@@ -21,10 +21,10 @@ function handleSearchInput(query) {
   }
   resultsDiv.innerHTML = `<div class="loading"><div class="spinner"></div> Searching…</div>`;
   searchDebounce = setTimeout(async () => {
-    const results = await apiCall(ENDPOINTS.search(query));
+    const { data: results, error } = await apiCall(ENDPOINTS.search(query));
 
-    if (results === null) {
-      resultsDiv.innerHTML = errorStateHTML();
+    if (error) {
+      resultsDiv.innerHTML = errorStateHTML(error);
       return;
     }
 

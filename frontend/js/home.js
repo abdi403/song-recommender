@@ -59,10 +59,10 @@ async function loadHomeSongs() {
   const container = document.getElementById('homeSongsContainer');
   container.innerHTML = `<div class="loading"><div class="spinner"></div> Loading songs…</div>`;
 
-  const songs = await apiCall(ENDPOINTS.songs());
+  const { data: songs, error } = await apiCall(ENDPOINTS.songs());
 
-  if (songs === null) {
-    container.innerHTML = errorStateHTML();
+  if (error) {
+    container.innerHTML = errorStateHTML(error);
     document.getElementById('statStrip').innerHTML = '';
     return;
   }

@@ -48,7 +48,7 @@ document.getElementById('addSongBtn').addEventListener('click', async () => {
   btn.disabled = true;
   btn.textContent = "Adding…";
 
-  const newSong = await apiCall(ENDPOINTS.addSong(), {
+  const { data: newSong, error } = await apiCall(ENDPOINTS.addSong(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -57,8 +57,8 @@ document.getElementById('addSongBtn').addEventListener('click', async () => {
   btn.disabled = false;
   btn.textContent = "Add Song to Database";
 
-  if (newSong === null) {
-    showToast(ERROR_MESSAGE, "error");
+  if (error) {
+    showToast(error, "error");
     return;
   }
 

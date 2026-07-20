@@ -2,29 +2,51 @@
  * songModal.js
  * -----------------------------------------------------------------------------
  * The song detail popup opened by clicking a song on Home or Search. It has
- * five tabs:
+ * five tabs, scrollable via the left/right arrow buttons next to them
+ * (#modalTabsLeft / #modalTabsRight) when there isn't room to show them all:
  *
  *   - Spotify          : embedded player via Spotify's official iFrame API
  *                        (https://developer.spotify.com/documentation/embeds/tutorials/using-the-iframe-api)
- *   - YouTube           : embeds song.track_youtube_link (a field the
- *                        backend returns directly on each song)
- *   - Recommendations    : GET /recommend/{track_id}, shown as a list, with
- *                        a button to open the raw backend response in a new tab
- *   - Song Features       : the song's actual audio features + genre/
- *                        popularity/explicit, as returned by the backend
- *   - Predict Features     : sends the song's features to POST
- *                        /predict-features and shows the predicted genre
- *                        and popularity back
+ *   - YouTube           : embeds song.track_youtube_id if the song has one;
+ *                        otherwise shows a YouTube search link so you can
+ *                        find the video and paste it into Song Features
+ *   - Recommendations    : GET /recommend/{track_id}. Stays exactly as
+ *                        listed — even if you switch to a different song via
+ *                        a recommendation click — until "Refresh
+ *                        Recommendations" is clicked, which re-fetches for
+ *                        whichever song is currently active in the popup
+ *   - Song Features       : editable form for every field in the schema
+ *                        (except track_id). "Submit Changes" sends the
+ *                        whole form as JSON to the update endpoint
+ *   - Predict Features     : sends the song's current audio features to
+ *                        POST /predict-features/{track_id} and shows the
+ *                        predicted genre + popularity back
+ *
+ * Clicking a song inside the Recommendations list calls switchToSong(),
+ * which makes that song the popup's "current song" — the Spotify embed,
+ * Song Features form, YouTube tab, and Predict Features tab all pick up the
+ * new song's data next time you open them. The Recommendations list itself
+ * does NOT refresh automatically (see above).
  *
  * FIELD NAMES: song objects are flat — audio features (see FEATURE_DEFS in
  * featureForm.js) are top-level fields directly on the song, NOT nested
- * under a "features" key. Use extractFeatures(song) (featureForm.js) to
- * pull them into their own object when sending to /predict-features.
+ * under a "features" key.
+ *
+ * ERRORS: every backend call here uses apiCall() (utils.js), which returns
+ * { data, error }. `error`, when present, is already a specific message
+ * like "/predict-features/abc123 returned 404: Not Found" — always show it
+ * via errorStateHTML(error) rather than a generic message.
  * -----------------------------------------------------------------------------
  */
 
 let modalCurrentSong = null;
 let modalActiveTab = 'spotify';
+
+// Caches the last-fetched recommendation list for the CURRENT popup
+// session, so switching tabs (or switching songs via a recommendation
+// click) doesn't silently re-fetch — only openSongModal() (a fresh popup)
+// or the "Refresh Recommendations" button clears/refills this.
+let modalRecommendCache = null;
 
 // Spotify's iFrame API loads asynchronously and calls this once, globally,
 // whenever it's ready — see the <script src="https://open.spotify.com/embed/iframe-api/v1">
@@ -42,12 +64,14 @@ function openSongModal(songId, initialTab = 'spotify') {
 
   modalCurrentSong = song;
   modalActiveTab = initialTab;
+  modalRecommendCache = null; // fresh popup session — recommendations haven't been fetched yet
 
   document.getElementById('modalSongTitle').textContent = song.track_name;
   document.getElementById('modalSongArtist').textContent = song.artists;
 
   document.querySelectorAll('.modal-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === modalActiveTab));
   renderModalTab();
+  updateTabArrowState();
 
   document.getElementById('songModalOverlay').classList.add('open');
 }
@@ -55,6 +79,24 @@ function openSongModal(songId, initialTab = 'spotify') {
 function closeSongModal() {
   document.getElementById('songModalOverlay').classList.remove('open');
   modalCurrentSong = null;
+  modalRecommendCache = null;
+}
+
+/**
+ * Makes `newSong` (e.g. an item clicked in the Recommendations list) the
+ * popup's current song. Updates the header immediately; if the currently
+ * visible tab is anything other than Recommendations, re-renders it with
+ * the new song right away. (Recommendations itself is left untouched —
+ * see the header comment above.)
+ */
+function switchToSong(newSong) {
+  modalCurrentSong = newSong;
+  document.getElementById('modalSongTitle').textContent = newSong.track_name;
+  document.getElementById('modalSongArtist').textContent = newSong.artists;
+
+  if (modalActiveTab !== 'recommend') {
+    renderModalTab();
+  }
 }
 
 function renderModalTab() {
@@ -82,6 +124,23 @@ document.getElementById('songModalOverlay').addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeSongModal();
 });
+
+/* ---------------- Tab strip left/right scroll arrows ---------------- */
+
+const modalTabsScroll = document.getElementById('modalTabsScroll');
+const modalTabsLeftBtn = document.getElementById('modalTabsLeft');
+const modalTabsRightBtn = document.getElementById('modalTabsRight');
+
+function updateTabArrowState() {
+  if (!modalTabsScroll) return;
+  modalTabsLeftBtn.disabled = modalTabsScroll.scrollLeft <= 0;
+  modalTabsRightBtn.disabled = modalTabsScroll.scrollLeft + modalTabsScroll.clientWidth >= modalTabsScroll.scrollWidth - 1;
+}
+
+modalTabsLeftBtn.addEventListener('click', () => modalTabsScroll.scrollBy({ left: -120, behavior: 'smooth' }));
+modalTabsRightBtn.addEventListener('click', () => modalTabsScroll.scrollBy({ left: 120, behavior: 'smooth' }));
+modalTabsScroll.addEventListener('scroll', updateTabArrowState);
+window.addEventListener('resize', updateTabArrowState);
 
 /* ---------------- Spotify tab ---------------- */
 
@@ -126,121 +185,283 @@ function mountSpotifyEmbed(song, attempt) {
   if (attempt < 20) {
     setTimeout(() => mountSpotifyEmbed(song, attempt + 1), 300);
   } else {
-    container.innerHTML = `<div class="empty-state"><p>${ERROR_MESSAGE}</p></div>`;
+    container.innerHTML = errorStateHTML('Spotify player failed to load.');
   }
 }
 
 /* ---------------- YouTube tab ---------------- */
 
+function extractYoutubeId(input) {
+  if (!input) return "";
+
+  input = input.trim();
+
+  // Already looks like a YouTube video ID
+  if (/^[a-zA-Z0-9_-]{11}$/.test(input)) {
+    return input;
+  }
+
+  try {
+    const url = new URL(input);
+
+    // https://youtu.be/VIDEO_ID
+    if (url.hostname === "youtu.be") {
+      return url.pathname.slice(1);
+    }
+
+    // https://www.youtube.com/watch?v=VIDEO_ID
+    const videoId = url.searchParams.get("v");
+    if (videoId) {
+      return videoId;
+    }
+
+    // https://www.youtube.com/embed/VIDEO_ID
+    const match = url.pathname.match(/^\/embed\/([^/?]+)/);
+    if (match) {
+      return match[1];
+    }
+  } catch {
+    // Not a valid URL
+  }
+
+  return "";
+}
+
 /**
- * Embeds song.track_youtube_link directly — this field is returned by the
- * backend on every song, right alongside track_name/artists/etc.
+ * Builds a YouTube search-results URL from the song's title + artist, e.g.
+ * track_name "Cherono" + artists "Abishai Spiritman" ->
+ * https://www.youtube.com/results?search_query=cherono+abishai+spiritman
+ */
+function buildYoutubeSearchUrl(song) {
+  const query = `${song.track_name} ${song.artists}`.toLowerCase();
+  const encoded = encodeURIComponent(query).replace(/%20/g, '+');
+  return `https://www.youtube.com/results?search_query=${encoded}`;
+}
+
+/**
+ * Embeds song.track_youtube_id directly if the song has one. If not,
+ * shows a YouTube search link instead, so the link can be found and then
+ * pasted into the YouTube Link field on the Song Features tab.
  */
 function renderYouTubeTab(song) {
   const body = document.getElementById('modalBody');
 
-  if (!song.track_youtube_link) {
-    body.innerHTML = `<div class="empty-state"><p>No YouTube link available for this song.</p></div>`;
+  if (!song.track_youtube_id) {
+    const searchUrl = buildYoutubeSearchUrl(song);
+    body.innerHTML = `
+      <div class="tab-panel">
+        <p class="tab-hint">No YouTube link saved for this song yet.</p>
+        <a class="btn btn-primary" target="_blank" rel="noopener" href="${searchUrl}">Search YouTube for "${escapeHTML(song.track_name)}"</a>
+        <p class="tab-hint">Found the right video? Paste its embed link into the YouTube Link field on the Song Features tab and hit Submit Changes.</p>
+      </div>
+    `;
     return;
   }
 
   body.innerHTML = `
     <div class="tab-panel">
-      <iframe class="embed-frame"
-        src="${escapeHTML(song.track_youtube_link)}"
-        allow="autoplay; encrypted-media" allowfullscreen></iframe>
+      <iframe
+          class="embed-frame"
+          src="https://www.youtube.com/embed/${encodeURIComponent(song.track_youtube_id)}"
+          title="${escapeHTML(song.track_name)}"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen>
+      </iframe>
     </div>
   `;
 }
 
 /* ---------------- Recommendations tab ---------------- */
 
-async function loadRecommendTab(song) {
+function loadRecommendTab(song) {
   const body = document.getElementById('modalBody');
-  body.innerHTML = `<div class="loading"><div class="spinner"></div> Finding similar songs…</div>`;
-
-  const recs = await apiCall(ENDPOINTS.recommend(song.track_id));
-
-  if (recs === null) {
-    body.innerHTML = errorStateHTML();
-    return;
-  }
-
-  if (recs.length === 0) {
-    body.innerHTML = `<div class="empty-state"><p>No recommendations available.</p></div>`;
-    return;
-  }
-
   body.innerHTML = `
     <div class="tab-panel">
-      <ul class="rec-list">
-        ${recs.map(s => `
-          <li class="rec-list-item" data-id="${s.track_id}">
-            <div class="rec-list-info">
-              <strong>${escapeHTML(s.track_name)}</strong>
-              <span>${escapeHTML(s.artists)}</span>
-            </div>
-            ${s.similarity !== undefined ? `<span class="similarity-pill">${Math.round(s.similarity * 100)}% match</span>` : ''}
-          </li>
-        `).join('')}
-      </ul>
-      <button class="btn btn-secondary" id="openRecommendationsNewTab">Open raw results in new tab</button>
+      <button class="btn btn-secondary" id="refreshRecommendationsBtn">Refresh Recommendations</button>
+      <div id="recommendListContainer"></div>
     </div>
   `;
 
-  body.querySelectorAll('.rec-list-item').forEach(item => {
-    item.addEventListener('click', () => openSongModal(item.dataset.id, 'recommend'));
+  // Always refreshes for whichever song is CURRENTLY active in the popup
+  // (modalCurrentSong), not necessarily the song this tab first loaded for.
+  document.getElementById('refreshRecommendationsBtn').addEventListener('click', () => {
+    fetchRecommendations(modalCurrentSong);
   });
-  document.getElementById('openRecommendationsNewTab').addEventListener('click', () => {
-    window.open(ENDPOINTS.recommend(song.track_id), '_blank');
+
+  if (modalRecommendCache) {
+    renderRecommendList(modalRecommendCache);
+  } else {
+    fetchRecommendations(song);
+  }
+}
+
+async function fetchRecommendations(song) {
+  const container = document.getElementById('recommendListContainer');
+  if (!container) return; // popup closed / switched tabs before this ran
+  container.innerHTML = `<div class="loading"><div class="spinner"></div> Finding similar songs…</div>`;
+
+  const { data: recs, error } = await apiCall(ENDPOINTS.recommend(song.track_id));
+
+  // The user may have switched away from the Recommendations tab while
+  // this was in flight — bail out instead of writing into a gone element.
+  const stillOnRecommendTab = document.getElementById('recommendListContainer');
+  if (!stillOnRecommendTab) return;
+
+  if (error) {
+    modalRecommendCache = null;
+    stillOnRecommendTab.innerHTML = errorStateHTML(error);
+    return;
+  }
+
+  modalRecommendCache = recs;
+  renderRecommendList(recs);
+}
+
+function renderRecommendList(recs) {
+  const container = document.getElementById('recommendListContainer');
+  if (!container) return;
+
+  if (recs.length === 0) {
+    container.innerHTML = `<div class="empty-state"><p>No recommendations available.</p></div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <ul class="rec-list">
+      ${recs.map(s => `
+        <li class="rec-list-item">
+          <div class="rec-list-info">
+            <strong>${escapeHTML(s.track_name)}</strong>
+            <span>${escapeHTML(s.artists)}</span>
+          </div>
+          ${s.similarity !== undefined ? `<span class="similarity-pill">${Math.round(s.similarity * 100)}% match</span>` : ''}
+        </li>
+      `).join('')}
+    </ul>
+  `;
+
+  // Bound by array index rather than a data-id lookup, since a recommended
+  // song may not exist in ALL_SONGS (it comes from a separate endpoint).
+  container.querySelectorAll('.rec-list-item').forEach((item, i) => {
+    item.addEventListener('click', () => switchToSong(recs[i]));
   });
 }
 
 /* ---------------- Song Features tab ---------------- */
 
 /**
- * Shows the song's data exactly as the backend returned it — no predicting
- * here, just display. (See the Predict Features tab below for predictions.)
+ * Editable form for every field in the schema except track_id (the
+ * identifier itself isn't editable). "Submit Changes" sends the whole
+ * thing as JSON to ENDPOINTS.updateSong(track_id).
  */
 function renderFeaturesTab(song) {
   const body = document.getElementById('modalBody');
 
-  const genreMissing = !song.track_genre;
-  const popularityMissing = song.popularity === undefined || song.popularity === null;
-  const explicitMissing = song.explicit === undefined || song.explicit === null;
-
-  const featureRows = FEATURE_DEFS.map(f => `
-    <div class="feature-row">
-      <span class="feature-label">${f.label}</span>
-      <span class="feature-value">${song[f.key] !== undefined && song[f.key] !== null ? song[f.key] : '<span class="missing">Missing</span>'}</span>
-    </div>
-  `).join('');
-
   body.innerHTML = `
     <div class="tab-panel">
-      <div class="feature-row">
-        <span class="feature-label">Genre</span>
-        <span class="feature-value">${genreMissing ? '<span class="missing">Missing</span>' : escapeHTML(song.track_genre)}</span>
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="featTrackName">Title</label>
+          <input type="text" id="featTrackName" value="${escapeHTML(song.track_name || '')}">
+        </div>
+        <div class="form-group">
+          <label for="featArtists">Artists</label>
+          <input type="text" id="featArtists" value="${escapeHTML(song.artists || '')}">
+        </div>
+        <div class="form-group">
+          <label for="featAlbumName">Album</label>
+          <input type="text" id="featAlbumName" value="${escapeHTML(song.album_name || '')}">
+        </div>
+        <div class="form-group">
+          <label for="featGenre">Genre</label>
+          <input type="text" id="featGenre" value="${escapeHTML(song.track_genre || '')}">
+        </div>
+        <div class="form-group">
+          <label for="featPopularity">Popularity</label>
+          <input type="number" id="featPopularity" min="0" max="100" value="${song.popularity ?? ''}">
+        </div>
+        <div class="form-group">
+          <label for="featDuration">Duration (ms)</label>
+          <input type="number" id="featDuration" min="0" value="${song.duration_ms ?? ''}">
+        </div>
+        <div class="form-group full">
+          <label for="featYoutubeID">YouTube Link</label>
+          <input type="text" id="featYoutubeID" value="${escapeHTML(song.track_youtube_id || '')}" placeholder="Paste any YouTube URL or video ID">
+        </div>
+        <div class="form-group">
+          <label for="featExplicit">Explicit</label>
+          <label class="checkbox-row">
+            <input type="checkbox" id="featExplicit" ${song.explicit ? 'checked' : ''}>
+            <span>Contains explicit content</span>
+          </label>
+        </div>
       </div>
-      <div class="feature-row">
-        <span class="feature-label">Popularity</span>
-        <span class="feature-value">${popularityMissing ? '<span class="missing">Missing</span>' : song.popularity}</span>
+
+      <h3 class="section-title" style="margin:20px 0 12px;">Audio Features</h3>
+      <div class="form-grid" id="featuresFormGrid"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="submitFeatureChangesBtn">Submit Changes</button>
       </div>
-      <div class="feature-row">
-        <span class="feature-label">Explicit</span>
-        <span class="feature-value">${explicitMissing ? '<span class="missing">Missing</span>' : (song.explicit ? 'Yes' : 'No')}</span>
-      </div>
-      ${featureRows}
+      <div id="submitFeatureChangesResult"></div>
     </div>
   `;
+
+  // Pre-fill sliders with this song's current values instead of defaults.
+  buildFeatureForm('featuresFormGrid', 'feat', song);
+
+  document.getElementById('submitFeatureChangesBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('submitFeatureChangesBtn');
+    const resultDiv = document.getElementById('submitFeatureChangesResult');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    const audioFeatures = readFeatureForm('feat');
+    const payload = {
+      track_name: document.getElementById('featTrackName').value.trim(),
+      artists: document.getElementById('featArtists').value.trim(),
+      album_name: document.getElementById('featAlbumName').value.trim(),
+      track_genre: document.getElementById('featGenre').value.trim(),
+      popularity: parseInt(document.getElementById('featPopularity').value) || 0,
+      duration_ms: parseInt(document.getElementById('featDuration').value) || 0,
+      track_youtube_id: extractYoutubeId(document.getElementById('featYoutubeID').value),
+      explicit: document.getElementById('featExplicit').checked ? "TRUE" : "FALSE",
+      ...audioFeatures
+    };
+
+    const { error } = await apiCall(ENDPOINTS.updateSong(song.track_id), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    btn.disabled = false;
+    btn.textContent = 'Submit Changes';
+
+    if (error) {
+      resultDiv.innerHTML = errorStateHTML(error);
+      return;
+    }
+
+    // Reflect the update locally (track_id is untouched since it's not in
+    // payload), refresh the header, and reload the Home table so it shows
+    // the new values too.
+    Object.assign(song, payload);
+    document.getElementById('modalSongTitle').textContent = song.track_name;
+    document.getElementById('modalSongArtist').textContent = song.artists;
+    resultDiv.innerHTML = '';
+    showToast('Song updated!');
+    await loadHomeSongs();
+  });
 }
 
 /* ---------------- Predict Features tab ---------------- */
 
 /**
- * Sends this song's audio features to POST /predict-features and shows
- * back the predicted genre + popularity. Expects a JSON response shaped
- * like: { "genre": "pop", "popularity": 62 }
+ * Sends this song's id to GET /predict-features/{track_id}
+ * and shows back the predicted genre + popularity. Expects a JSON response
+ * shaped like: { "genre": "pop", "popularity": 62 }
  */
 function renderPredictFeaturesTab(song) {
   const body = document.getElementById('modalBody');
@@ -258,18 +479,16 @@ function renderPredictFeaturesTab(song) {
     btn.disabled = true;
     btn.textContent = 'Predicting…';
 
-    const features = extractFeatures(song);
-    const result = await apiCall(ENDPOINTS.predictFeatures(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(features)
+    const { data: result, error } = await apiCall(ENDPOINTS.predictFeatures(song.track_id), {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
     });
 
     btn.disabled = false;
     btn.textContent = 'Predict Genre & Popularity';
 
-    if (result === null) {
-      resultDiv.innerHTML = errorStateHTML();
+    if (error) {
+      resultDiv.innerHTML = errorStateHTML(error);
       return;
     }
 

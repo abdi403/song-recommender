@@ -8,10 +8,11 @@ It's built to plug into a data-science backend (a genre classifier, a
 popularity predictor, a recommender, etc.) over a simple REST API. Every
 page calls the backend directly — see the table below for which route each
 page uses. If a request fails for any reason (backend not running, wrong
-URL, network error, server error), the page shows a plain
-**"Something Went Wrong"** message instead of guessing or making up data.
-A live status dot in the sidebar also tells you at a glance whether the
-backend is currently reachable.
+URL, network error, server error), the page shows exactly which endpoint
+failed and why — e.g. **`/songs returned 500: Internal Server Error`** —
+in red, instead of guessing or making up data. A live status dot in the
+sidebar also tells you at a glance whether the backend is currently
+reachable.
 
 ## Why plain HTML/CSS/JS?
 
@@ -52,7 +53,7 @@ frontend/
 |-------------------|-------------------------------------------------------|----------------------------------|
 | `home.js`         | "Home" — table of all songs, plus a manual Refresh button | `GET /songs`                  |
 | `search.js`       | "Search" — search by title/artist                     | `GET /songs/search`              |
-| `songModal.js`    | Song detail popup — Spotify / YouTube / Recommendations / Song Features / Predict Features tabs, opened by clicking any song | `GET /recommend/{track_id}`, `POST /predict-features` |
+| `songModal.js`    | Song detail popup — Spotify / YouTube / Recommendations / Song Features / Predict Features tabs, opened by clicking any song | `GET /recommend/{track_id}`, `PUT /song/{track_id}`, `POST /predict-features/{track_id}` |
 | `addSong.js`      | "Add Song" — form to add a new song                    | `POST /songs`                    |
 | `featureForm.js`  | The 12-slider "audio features" form, reused by the Add Song page and for building the payload sent to Predict Features | — (no route, just UI) |
 | `navigation.js`   | Sidebar buttons that switch pages                      | — (no route)                     |
@@ -65,8 +66,11 @@ that functionality lives only in the popup's **Predict Features** tab
 (see "The song detail popup" below).
 
 Note that the raw routes above are listed here in the README for developers —
-the app itself never prints endpoint paths in the UI; the only thing an end
-user sees when something fails is the "Something Went Wrong" message.
+the app doesn't print endpoint paths in the UI during normal use. The one
+deliberate exception is error messages: when a request fails, showing the
+exact endpoint and status (see "When something goes wrong" below) is the
+point, so a user can report ("`/predict-features/a1b2c3` returned 404")
+something actionable instead of a vague failure.
 
 There's no framework and no bundler, so every `.js` file above is loaded
 directly by `<script>` tags in `index.html`, in a specific order (see "Load
@@ -81,7 +85,7 @@ these work:
 
 1. **Just open the file** — double-click `index.html`, or drag it into your
    browser. (Some browsers restrict `fetch` on `file://` pages — if a page
-   shows "Something Went Wrong" right away, use option 2 instead.)
+   shows a red "returned ... " error right away, use option 2 instead.)
 2. **Serve it with Python** (already on most data-science machines):
    ```bash
    cd frontend
@@ -121,21 +125,40 @@ copy and fill in.
 
 Clicking any song — on Home or on Search — opens a popup instead of
 navigating to a separate page. It has five tabs, all handled by
-`js/songModal.js`:
+`js/songModal.js`. If there isn't room to show every tab, use the `‹`/`›`
+arrows next to the tab strip to scroll to the rest — no ugly native
+horizontal scrollbar.
 
 | Tab                   | What it does                                                             |
 |-----------------------|-----------------------------------------------------------------------------|
 | **Spotify**           | An embedded player using Spotify's official [iFrame API](https://developer.spotify.com/documentation/embeds/tutorials/using-the-iframe-api). Built from `spotify:track:{track_id}`, so this assumes `track_id` is a real Spotify track ID (true for the "Spotify Tracks Dataset" this schema matches). |
-| **YouTube**           | Embeds `song.track_youtube_link` directly — a field the backend returns on every song, right alongside `track_name`/`artists`/etc. If a song doesn't have one, the tab says so instead of showing a broken player. |
-| **Recommendations**   | Calls `GET /recommend/{track_id}` and shows similar songs as a list. Includes an "Open raw results in new tab" button that opens the backend response directly — handy for checking exactly what your model returned. |
-| **Song Features**     | Shows the song's data exactly as the backend returned it: genre, popularity, explicit, and all 12 audio features. No predicting here — just display. |
-| **Predict Features**  | Sends the song's audio features to `POST /predict-features` and shows back the predicted genre and popularity. |
+| **YouTube**           | Embeds `song.track_youtube_link` if the song has one. If not, shows a YouTube search link (built from the title + artist) so you can find the right video and paste its link into Song Features. |
+| **Recommendations**   | Calls `GET /recommend/{track_id}` and shows similar songs as a list. The list stays exactly as-is — even across tab switches or switching songs via a recommendation click — until you click **Refresh Recommendations**, which re-fetches for whichever song is currently active in the popup. |
+| **Song Features**     | An editable form covering every field in the schema except `track_id`. Click **Submit Changes** to send the whole form as JSON to the update endpoint. |
+| **Predict Features**  | Sends the song's current audio features to `POST /predict-features/{track_id}` and shows back the predicted genre and popularity. |
+
+**Clicking a song inside the Recommendations list** calls `switchToSong()`,
+which makes that song the popup's "current song" — the Spotify embed,
+Song Features form, YouTube tab, and Predict Features tab all pick up its
+data the next time you open them (or immediately, if you're already on one
+of those tabs). The Recommendations list itself does **not** refresh
+automatically when you do this — only the Refresh Recommendations button
+does that.
 
 **Upgrading the Spotify/YouTube tabs later:** the code above assumes
-`track_id` doubles as a Spotify ID and that the backend already supplies a
-ready-to-embed YouTube link. If either assumption doesn't hold for your
-data, the two functions to adjust are `renderSpotifyTab()` /
-`mountSpotifyEmbed()` and `renderYouTubeTab()` in `js/songModal.js`.
+`track_id` doubles as a Spotify ID and builds YouTube search URLs from
+title + artist. If either assumption doesn't hold for your data, the
+functions to adjust are `renderSpotifyTab()` / `mountSpotifyEmbed()` and
+`renderYouTubeTab()` / `buildYoutubeSearchUrl()` in `js/songModal.js`.
+
+## Updating a song
+
+The Song Features tab's **Submit Changes** button sends a `PUT` request to
+`ENDPOINTS.updateSong(track_id)` in `config.js`, which points at
+`/song/{track_id}` — note the **singular** "song", unlike every other
+route in this app (`/songs`, `/songs/search`, etc). That's intentional and
+matches the backend's actual update route; if your backend later renames
+it, update `updateSong` in `config.js` only.
 
 ## Theme & branding
 
@@ -152,12 +175,20 @@ you change it:
 ## When something goes wrong
 
 If a request to `API_BASE` fails — backend not running, wrong port, CORS
-error, server error, timeout — the page you're on shows a plain
-**"Something Went Wrong"** message (in the page content, or as a toast for
-button actions like Predict Features in the song popup, or Add Song)
-instead of silently doing nothing. Open your browser's developer console for
-the underlying error if you need to debug further; `apiCall()` in
-`utils.js` logs every failed request there.
+error, server error, timeout — the page you're on shows the **specific
+endpoint and status** in red instead of a vague message, e.g.:
+
+```
+/predict-features/a1b2c3 returned 404: Not Found
+```
+
+(or, if the backend never responded at all — e.g. it's not running —
+something like `/songs returned failed: Network error`). This shows up
+inline in red text where the failed data would have gone, or as a toast
+for button actions like Predict Features or Add Song. `apiCall()` in
+`utils.js` is what builds this message and returns it as `error`; every
+page checks `error` and passes it straight to `errorStateHTML(error)` or
+`showToast(error, 'error')` rather than inventing its own wording.
 
 The sidebar's **API Status** indicator (`js/apiStatus.js`) gives you an
 at-a-glance signal without opening the console: a green dot + "API Active"
@@ -174,8 +205,9 @@ means it didn't. It re-checks automatically every 30 seconds.
   - New/renamed song field → see "Field names" below for every place to update.
 - **Backend endpoint changed shape (e.g. returns different field names)?**
   Look at the code that reads the response in the matching file
-  (e.g. `home.js` for `/songs`, `songModal.js` for `/recommend/{track_id}`
-  and `/predict-features`) and update the field names it reads.
+  (e.g. `home.js` for `/songs`, `songModal.js` for `/recommend/{track_id}`,
+  `/song/{track_id}`, and `/predict-features/{track_id}`) and update the
+  field names it reads.
 - **Adding a whole new page?** Add a `<section class="page" id="page-yourpage">`
   in `index.html`, a matching sidebar button with `data-page="yourpage"`,
   and a new `js/yourpage.js` file — then add it to the `<script>` list at
@@ -237,7 +269,7 @@ track_genre, track_youtube_link
 **Important:** the 12 audio features are flat fields on the song, the same
 as `track_name` or `popularity` — there is **no nested `features` object**.
 `extractFeatures(song)` in `featureForm.js` is the one place that gathers
-them into their own object (for sending to `POST /predict-features`); it
+them into their own object (for sending to `POST /predict-features/{track_id}`); it
 reads each one straight off `song[key]`.
 
 **If your backend uses a different identifier field name** (e.g. plain
@@ -250,7 +282,8 @@ silently do nothing (or open the wrong song).
 field), update it in all of these places together:
 - `home.js` (`songRowHTML`, `renderStatStrip`) — the primary reference for
   field names
-- `songModal.js` (`openSongModal`, `loadRecommendTab`, `renderFeaturesTab`,
+- `songModal.js` (`openSongModal`, `switchToSong`, `renderRecommendList`,
+  `renderFeaturesTab` — including the `payload` it builds for `updateSong`,
   `renderYouTubeTab`, `mountSpotifyEmbed`)
 - `featureForm.js` (`FEATURE_DEFS`, `extractFeatures`)
 - `addSong.js` (the `payload` object sent to `POST /songs`)

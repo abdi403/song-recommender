@@ -36,18 +36,27 @@ const FEATURE_DEFS = [
   { key: 'time_signature', label: 'Time Signature', min: 3, max: 7, step: 1, def: 4 },
 ];
 
-function buildFeatureForm(containerId, prefix) {
+/**
+ * Builds the slider markup into #containerId. `values` is optional — pass
+ * a song object (or any {key: value} map) to pre-fill sliders with current
+ * data instead of the defaults; omit it to get the defaults (e.g. for a
+ * blank Add Song form).
+ */
+function buildFeatureForm(containerId, prefix, values = {}) {
   const container = document.getElementById(containerId);
-  container.innerHTML = FEATURE_DEFS.map(f => `
+  container.innerHTML = FEATURE_DEFS.map(f => {
+    const val = (values[f.key] !== undefined && values[f.key] !== null) ? values[f.key] : f.def;
+    return `
     <div class="form-group">
       <label for="${prefix}_${f.key}">${f.label}</label>
       <div class="slider-row">
-        <input type="range" id="${prefix}_${f.key}" min="${f.min}" max="${f.max}" step="${f.step}" value="${f.def}"
+        <input type="range" id="${prefix}_${f.key}" min="${f.min}" max="${f.max}" step="${f.step}" value="${val}"
           oninput="document.getElementById('${prefix}_${f.key}_val').textContent = this.value">
-        <span class="slider-value" id="${prefix}_${f.key}_val">${f.def}</span>
+        <span class="slider-value" id="${prefix}_${f.key}_val">${val}</span>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function readFeatureForm(prefix) {
@@ -68,17 +77,3 @@ function randomizeFeatureForm(prefix) {
   });
 }
 
-/**
- * Pulls just the 12 numeric audio-feature fields (see FEATURE_DEFS) off a
- * song object returned by the backend. The backend returns these as flat,
- * top-level fields directly on the song — NOT nested under a "features"
- * key — so this is the one place that gathers them into their own object
- * for sending to POST /predict-features.
- */
-function extractFeatures(song) {
-  const features = {};
-  FEATURE_DEFS.forEach(f => {
-    features[f.key] = song[f.key];
-  });
-  return features;
-}

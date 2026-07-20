@@ -29,31 +29,48 @@ function escapeHTML(str) {
 
 /**
  * A ready-to-insert error block for any page section that failed to load
- * data from the backend, e.g. `container.innerHTML = errorStateHTML();`.
+ * data from the backend, e.g. `container.innerHTML = errorStateHTML(error);`.
+ * Pass the specific message from apiCall()'s `error` field when you have
+ * one — falls back to a generic message if you don't.
  */
-function errorStateHTML() {
-  return `<div class="empty-state"><p>${ERROR_MESSAGE}</p></div>`;
+function errorStateHTML(message = ERROR_MESSAGE) {
+  return `<div class="empty-state"><p class="error-text">${escapeHTML(message)}</p></div>`;
 }
 
 /**
  * apiCall(url, options)
  * Thin wrapper around fetch() for talking to the backend (see config.js for
- * the URLs). Returns the parsed JSON response on success, or `null` if the
- * request fails for any reason — backend not running, wrong URL in
- * js/env.js, network error, timeout, non-2xx status, etc.
+ * the URLs). Always returns { data, error }:
+ *   - success: { data: <parsed json>, error: null }
+ *   - failure: { data: null, error: "<path> returned <status>: <statusText>" }
+ *     (or "<path> failed: <network error message>" if the request never
+ *     got a response at all — backend down, DNS failure, timeout, etc.)
  *
- * Every caller MUST check for `null` and tell the user something went
- * wrong (see ERROR_MESSAGE / errorStateHTML() above, or showToast() below).
+ * Every caller MUST check `error` and show it to the user — e.g.
+ * `container.innerHTML = errorStateHTML(error)` or `showToast(error, 'error')`.
  * Never let a failed request pass through silently.
  */
 async function apiCall(url, options = {}) {
+  let path;
+  try {
+    path = new URL(url).pathname;
+  } catch (err) {
+    path = url;
+  }
+
   try {
     const res = await fetch(url, { ...options, signal: AbortSignal.timeout(2500) });
-    if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
-    return await res.json();
+    if (!res.ok) {
+      const error = `${path} returned ${res.status}: ${res.statusText || 'Error'}`;
+      console.error('API request failed:', error);
+      return { data: null, error };
+    }
+    const data = await res.json();
+    return { data, error: null };
   } catch (err) {
-    console.error('API request failed:', err);
-    return null;
+    const error = `${path} failed: ${err.message || 'Network error'}`;
+    console.error('API request failed:', error);
+    return { data: null, error };
   }
 }
 
