@@ -1,63 +1,61 @@
-from pathlib import Path
-import sqlite3
+from os import getenv
+
+from dotenv import load_dotenv
+import psycopg
+from psycopg.rows import dict_row
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from .song_model import SongModel, SongUpdate
+from .song_model import SongUpdate
 
+load_dotenv()
+
+DATABASE_URL = getenv("DATABASE_URL")
 
 app = FastAPI()
 
-
-# Database location
-ROOT_DIR = Path(__file__).resolve().parent.parent
-DATABASE_PATH = ROOT_DIR / "database" / "song_recommendations_db.db"
-
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Restrict this in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# --------------------------
-# Database helpers
-# --------------------------
-
 def get_connection():
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    return psycopg.connect(
+        DATABASE_URL,
+        row_factory=dict_row,
+    )
 
 
 def fetch_all(query: str, params: tuple = ()):
     with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(query, params)
-        return [dict(row) for row in cursor.fetchall()]
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            return cur.fetchall()
 
 
-def execute(query: str, params: tuple = ()) -> int:
-    """
-    Executes INSERT/UPDATE/DELETE statements.
+def execute(query: str, params: tuple = ()):
 
-    Returns:
-        Number of rows affected.
-    """
     with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(query, params)
-        conn.commit()
-        return cursor.rowcount
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            conn.commit()
+            return cur.rowcount
 
 
 # --------------------------
 # Endpoints
 # --------------------------
+@app.get("/")
+def root():
+    return {
+        "status": "ok",
+        "message": "Song Recommendation API"
+    }
 
 @app.get("/songs")
 def all_songs():
@@ -74,8 +72,8 @@ def search_songs(q: str):
         """
         SELECT *
         FROM songs
-        WHERE artists LIKE ?
-           OR track_name LIKE ?
+        WHERE artists ILIKE %s
+           OR track_name ILIKE %s
         ORDER BY popularity DESC
         """,
         (search, search),
@@ -114,7 +112,7 @@ def update_song(track_id: str, updates: SongUpdate):
             detail="No fields supplied for update."
         )
 
-    set_clause = ", ".join(f"{field} = ?" for field in update_data)
+    set_clause = ", ".join(f"{field} = %s" for field in update_data)
 
     values = list(update_data.values())
     values.append(track_id)
@@ -123,7 +121,7 @@ def update_song(track_id: str, updates: SongUpdate):
         f"""
         UPDATE songs
         SET {set_clause}
-        WHERE track_id = ?
+        WHERE track_id = %s
         """,
         tuple(values),
     )
