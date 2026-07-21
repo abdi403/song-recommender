@@ -164,15 +164,21 @@ def update_song(track_id: str, updates: SongUpdate):
 
 
 @app.post("/songs")
-def add_songs():
+def add_songs(song:SongUpdate):
     query ="""Insert into songs(
-        track_id, 
+        track_id,
         track_name, 
-        artist_name,
-        genre) 
-    values %s"""
-    song_inserted = execute(query, ("1", "cherono", "abishai", "afropop"))
+        artists,
+        track_genre) 
+    values (%s,%s,%s,%s) returning track_id"""
+    song_inserted = execute(query, (song.track_id,song.track_name,song.artists,song.track_genre))
     print(song_inserted)
+    if song_inserted:
+        return {"message":f"{song_inserted} was Inserted"}
+    else:
+        return {"message": "insert failed"}
+
+
 
 
 

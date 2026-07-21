@@ -27,6 +27,7 @@ class SongModel(BaseModel):
 
 
 class SongUpdate(BaseModel):
+    track_id: Optional[str] = None
     track_youtube_id: Optional[str] = None
     artists: Optional[str] = None
     album_name: Optional[str] = None
